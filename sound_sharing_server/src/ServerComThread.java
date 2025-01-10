@@ -1,9 +1,11 @@
 import java.io.*;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.Callable;
+
 
 public class ServerComThread implements Callable<String> {
     /**
@@ -15,7 +17,7 @@ public class ServerComThread implements Callable<String> {
      */
     PrintWriter sendMsg;
     /**
-     * Socekt to facilitate communicating over the network
+     * Socket to facilitate communicating over the network
      */
     Socket socket;
     /**
@@ -38,6 +40,10 @@ public class ServerComThread implements Callable<String> {
      * ID of the remote host that this thread communicates with, double as id of com thread
      */
     int talksWith = -1;
+    /**
+     * ID of account that this thread is communicating with
+     */
+    int accountId = -1;
 
     /**
      * Instead of serialization, you get this. Yes, it works, unlike serialization
@@ -56,7 +62,11 @@ public class ServerComThread implements Callable<String> {
      * If pingDelay reaches a certain value, assume host is dead
      */
     public boolean assumeDead = false;
-    ServerComThread(Socket socket, int id) throws IOException {
+    /**
+     * Database connectivity
+     */
+    private DBConnection database = new DBConnection();
+    ServerComThread(Socket socket, int id) throws IOException, SQLException {
         this.socket = socket;
         this.talksWith = id;
         receiveMsg = new BufferedReader(new InputStreamReader(socket.getInputStream()));
@@ -137,6 +147,101 @@ public class ServerComThread implements Callable<String> {
         return mainArray;
     }
 
+    /**
+     * Creates a single sound file from an earlier executed DB statement
+     * @param resultSet Result from seaerchDatabase of DBConnection object
+     * @return An object of SoundFile class
+     */
+    private SoundFile makeFileFromResultSet(ResultSet resultSet) throws SQLException {
+        resultSet.next();
+        int id = resultSet.getInt("id");
+        int owner_id = resultSet.getInt("owner_id");
+        String name = resultSet.getString("name");
+        String description = resultSet.getString("description");
+        String duration = resultSet.getString("duration");
+        int size = resultSet.getInt("size");
+        String format = resultSet.getString("format");
+        String type = resultSet.getString("type");
+        String date_added = resultSet.getString("date_added");
+        return new SoundFile(id, owner_id, name, description, duration, size, format, type, date_added);
+    }
+
+    /**
+     * Creates an ArrayList of sound files from an earlier executed DB statement.
+     * Use this over the single one as this has a better built-in validity check
+     * @param resultSet Result from searchDatabase of DBConnection object
+     * @return ArrayList of SoundFile objects
+     * @throws SQLException If SQL fucks up, or you
+     */
+    private ArrayList<SoundFile> makeFileListFromResultSet(ResultSet resultSet) throws SQLException {
+        ArrayList<SoundFile> list = new ArrayList<>();
+        while (resultSet.next())
+        {
+            int id = resultSet.getInt("id");
+            int owner_id = resultSet.getInt("owner_id");
+            String name = resultSet.getString("name");
+            String description = resultSet.getString("description");
+            String duration = resultSet.getString("duration");
+            int size = resultSet.getInt("size");
+            String format = resultSet.getString("format");
+            String type = resultSet.getString("type");
+            String date_added = resultSet.getString("date_added");
+            list.add(new SoundFile(id, owner_id, name, description, duration, size, format, type, date_added));
+        }
+        return list;
+    }
+
+    /**
+     * Creates a single sound list from an earlier executed DB statement
+     * @param resultSet Result from seaerchDatabase of DBConnection object
+     * @return An object of SoundList class, with all the associated files
+     */
+    private SoundList makeListFromResultSet(ResultSet resultSet) throws SQLException {
+        resultSet.next();
+        int id = resultSet.getInt("id");
+        int owner_id = resultSet.getInt("owner_id");
+        String name = resultSet.getString("name");
+        String description = resultSet.getString("description");
+        String type = resultSet.getString("type");
+        SoundList soundList = new SoundList(id, owner_id, name, description, type);
+
+        ResultSet filesSet = database.searchDatabase("SELECT `id`, `owner_id`, `name`, `description`, `duration`, `size`, `format`, `type`, `date_added`\n" +
+                "FROM `file` INNER JOIN `file_sharing`\n" +
+                "ON `file`.`owner_id` = `file_sharing`.`account_id`;");
+        ArrayList<SoundFile> files = makeFileListFromResultSet(filesSet);
+        soundList.setFiles(files);
+
+        return soundList;
+    }
+
+    /**
+     * Creates an ArrayList of sound lists from an earlier executed DB statement.
+     * Use this over the single one as this has a better built-in validity check
+     * @param resultSet Result from searchDatabase of DBConnection object
+     * @return ArrayList of SoundList objects
+     * @throws SQLException If SQL fucks up, or you. I'm not checking, but I'm judging
+     */
+    private ArrayList<SoundList> makeListListFromResultSet(ResultSet resultSet) throws SQLException {
+        ArrayList<SoundList> list = new ArrayList<>();
+        while (resultSet.next())
+        {
+            int id = resultSet.getInt("id");
+            int owner_id = resultSet.getInt("owner_id");
+            String name = resultSet.getString("name");
+            String description = resultSet.getString("description");
+            String type = resultSet.getString("type");
+            SoundList soundList = new SoundList(id, owner_id, name, description, type);
+
+            ResultSet filesSet = database.searchDatabase("SELECT `id`, `owner_id`, `name`, `description`, `duration`, `size`, `format`, `type`, `date_added`\n" +
+                    "FROM `file` INNER JOIN `file_sharing`\n" +
+                    "ON `file`.`owner_id` = `file_sharing`.`account_id`;");
+            ArrayList<SoundFile> files = makeFileListFromResultSet(filesSet);
+            soundList.setFiles(files);
+
+            list.add(soundList);
+        }
+        return list;
+    }
 
     /**
      * Main working environment of the server communication thread
@@ -177,6 +282,7 @@ public class ServerComThread implements Callable<String> {
                 RemoteHostTaskDummy component;
                 switch (response)
                 {
+                    /*
                     case "RESPONSE_GET_TASK":
                         rawArray = responseList.get(responsesListIndex);
                         responsesListIndex++;
@@ -215,6 +321,8 @@ public class ServerComThread implements Callable<String> {
                             //System.out.println("SERIALIZATION " + dummy.getArray());
                         }
                         break;
+                     */
+                    /*
                     case "RESPONSE_GET_ALL_TASKS":
                         rawArray = responseList.get(responsesListIndex);
                         responsesListIndex++;
@@ -265,6 +373,177 @@ public class ServerComThread implements Callable<String> {
                             }
 
                         }
+                        break;
+                     */
+                    case "RECEIVE_FILES":
+                        ResultSet filesSetRcv = database.searchDatabase("SELECT `id`, `owner_id`, `name`, `description`, `duration`, `size`, `format`, `type`, `date_added`\n" +
+                                "FROM `file` INNER JOIN `file_sharing`\n" +
+                                "ON `file`.`owner_id` = `file_sharing`.`account_id`\n" +
+                                "WHERE `owner_id` = " + accountId + ";");
+                        ArrayList<SoundFile> filesRcv = makeFileListFromResultSet(filesSetRcv);
+                        sendMsg.println(filesRcv.size()); // amount
+                        for (SoundFile file : filesRcv)
+                        {
+                            ArrayList<String> elements = file.getArrayOfElements();
+                            for (String element : elements)
+                            {
+                                sendMsg.println(element);
+                            }
+                        }
+                        break;
+                    case "RECEIVE_FILES_PUBLIC":
+                        ResultSet filesSetRcvPub = database.searchDatabase("SELECT `id`, `owner_id`, `name`, `description`, `duration`, `size`, `format`, `type`, `date_added`\n" +
+                                "FROM `file` INNER JOIN `file_sharing`\n" +
+                                "ON `file`.`owner_id` = `file_sharing`.`account_id`\n" +
+                                "WHERE `owner_id` = " + accountId + "\n" +
+                                "AND `type` = \"public\";");
+                        ArrayList<SoundFile> filesRcvPub = makeFileListFromResultSet(filesSetRcvPub);
+                        sendMsg.println(filesRcvPub.size()); // amount
+                        for (SoundFile file : filesRcvPub)
+                        {
+                            ArrayList<String> elements = file.getArrayOfElements();
+                            for (String element : elements)
+                            {
+                                sendMsg.println(element);
+                            }
+                        }
+                        break;
+                    case "RECEIVE_LISTS":
+                        ResultSet listsSetRcv = database.searchDatabase("SELECT `id`, `owner_id`, `name`, `description`, `type`\n" +
+                                "FROM `list_main` INNER JOIN `list_sharing`\n" +
+                                "ON `list_main`.`owner_id` = `list_sharing`.`account_id`\n" +
+                                "WHERE `owner_id` = " + accountId + ";");
+                        ArrayList<SoundList> listsRcv = makeListListFromResultSet(listsSetRcv);
+                        sendMsg.println(listsRcv.size());
+                        for (SoundList list: listsRcv)
+                        {
+                            ArrayList<String> elements = list.getArrayOfElements();
+                            for (String element : elements)
+                            {
+                                sendMsg.println(element);
+                            }
+                            for (SoundFile file : list.getFiles())
+                            {
+                                elements = file.getArrayOfElements();
+                                for (String element : elements)
+                                {
+                                    sendMsg.println(element);
+                                }
+                            }
+                        }
+                        break;
+                    case "RECEIVE_LISTS_PUBLIC":
+                        ResultSet listsSetRcvPub = database.searchDatabase("SELECT `id`, `owner_id`, `name`, `description`, `type`\n" +
+                                "FROM `list_main` INNER JOIN `list_sharing`\n" +
+                                "ON `list_main`.`owner_id` = `list_sharing`.`account_id`\n" +
+                                "WHERE `owner_id` = " + accountId + "\n" +
+                                "AND `type` = \"public\";");
+                        ArrayList<SoundList> listsRcvPub = makeListListFromResultSet(listsSetRcvPub);
+                        sendMsg.println(listsRcvPub.size());
+                        for (SoundList list: listsRcvPub)
+                        {
+                            ArrayList<String> elements = list.getArrayOfElements();
+                            for (String element : elements)
+                            {
+                                sendMsg.println(element);
+                            }
+                            for (SoundFile file : list.getFiles())
+                            {
+                                elements = file.getArrayOfElements();
+                                for (String element : elements)
+                                {
+                                    sendMsg.println(element);
+                                }
+                            }
+                        }
+                        break;
+                    case "LOGIN_REQUEST":
+                        String loginLog = responseList.get(responsesListIndex++);
+                        String passwordLog = responseList.get(responsesListIndex++);
+                        ResultSet loginSetLog = database.searchDatabase("SELECT *\n" +
+                                "FROM `account`\n" +
+                                "WHERE `name` = \"" + loginLog + "\";");
+                        if (!loginSetLog.next())
+                        {
+                            sendMsg.println("LOGIN_ERROR");
+                            break;
+                        }
+                        while (loginSetLog.next())
+                        {
+                            if (!passwordLog.equals(loginSetLog.getString("password")))
+                            {
+                                sendMsg.println("PASSWORD_ERROR");
+                                break;
+                            }
+                            else
+                            {
+                                sendMsg.println(loginSetLog.getString("id"));
+                                sendMsg.println(loginSetLog.getString("type"));
+                            }
+                        }
+                        break;
+                    case "REGISTER_REQUEST":
+                        String loginReg = responseList.get(responsesListIndex++);
+                        String passwordReg = responseList.get(responsesListIndex++);
+                        if (loginReg.equalsIgnoreCase("guest"))
+                        {
+                            sendMsg.println("REGISTER_ERROR");
+                            break;
+                        }
+                        ResultSet loginSetReg = database.searchDatabase("SELECT *\n" +
+                                "FROM `account`\n" +
+                                "WHERE `name` = \"" + loginReg + "\";");
+                        if (!loginSetReg.next())
+                        {
+                            if (database.execUpdate("INSERT INTO `account` (`name`, `password`, `type`)\n" +
+                                    "VALUES (\"" + loginReg + "\", \"" + passwordReg + "\", \"standard\");") != -1)
+                            {
+                                sendMsg.println("REGISTER_CORRECT");
+                                loginSetReg = database.searchDatabase("SELECT *\n" +
+                                        "FROM `account`\n" +
+                                        "WHERE `name` = \"" + loginReg + "\";");
+                                sendMsg.println(loginSetReg.getString("id"));
+                                sendMsg.println(loginSetReg.getString("type"));
+                                break;
+                            }
+                            else
+                            {
+                                sendMsg.println("REGISTER_ERROR");
+                                break;
+                            }
+
+                        }
+                        else
+                        {
+                            sendMsg.println("REGISTER_ERROR");
+                            break;
+                        }
+                        //break; // unreachable statement :(
+                    case "REGISTER_LIST":
+                        break;
+                    case "REGISTER_FILE":
+                        break;
+                    case "FILE_DELETE":
+                        break;
+                    case "FILE_SHARE_REQUEST":
+                        break;
+                    case "LIST_DELETE":
+                        break;
+                    case "LIST_SHARE_REQUEST":
+                        break;
+                    case "BROWSE_FILES_REQUEST":
+                        break;
+                    case "FILE_DELETE_USER":
+                        break;
+                    case "REGISTER_LIST_SERVER":
+                        break;
+                    case "BROWSE_LISTS_REQUEST":
+                        break;
+                    case "LIST_DELETE_USER":
+                        break;
+                    case "LISTEN_SOUND_REQUEST":
+                        break;
+                    case "CHANGE_USER_TYPE":
                         break;
                     case "PING":
                         pingAck = true;

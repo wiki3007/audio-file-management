@@ -4,25 +4,26 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * Function Checkboxes, client-side
+ * Function Checkboxes, server-side
  * Code implemented / UI implemented (does the server even need UI?) / Tested
  *
  * Guest:
- *  Get public files            N / N / N
- *  Get public lists            N / N / N
- *  Make temporary lists        N / N / N
- *  Listen to files on server   N / N / N
+ *  Get public files            Y / N / N
+ *  Get public lists            Y / N / N
+ *  Make temporary lists        N / N / N   (client only)
+ *  Listen to files on server   N / N / N   (client only)
  *
  * Standard:
- *  Registering account         N / N / N
- *  Log in to server            N / N / N
- *  Get public files            N / N / N
- *  Get private files           N / N / N
+ *  Registering account         Y / N / N
+ *  Log in to server            Y / N / N
+ *  Get public files            Y / N / N
+ *  Get private files           Y / N / N
  *  Upload public files         N / N / N
  *  Upload private files        N / N / N
  *  Delete private files        N / N / N
  *  Share private files         N / N / N
- *  Get public lists            N / N / N
+ *  Get public lists            Y / N / N
+ *  Get private lists           Y / N / N
  *  Create public lists         N / N / N
  *  Create private lists        N / N / N
  *  Delete private lists        N / N / N

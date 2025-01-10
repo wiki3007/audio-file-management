@@ -57,41 +57,17 @@ public class ServerThread implements Callable<String> {
      */
     public boolean keepAlive = true;
 
-    /**
-     * URL to the database, just assume it runs local to the server on XAMPP, IDC
-     */
-    private String url = "jdbc:Mysql://127.0.0.1:3306";
-    /**
-     * Database login
-     */
-    private String login = "root";
-    /**
-     * Database password
-     */
-    private String password = ""; // people cannot steal your plaintext if you just so no. What are criminals going to do? Break the law? That's illegal.
-    /**
-     * Database name
-     */
-    private String dbname = "sound_sharing";
-    /**
-     * Database connector
-     */
-    private Connection connection = DriverManager.getConnection(url, login, password);
-    /**
-     * Main database thingy to use commands from
-     */
-    public Statement statement = connection.createStatement();
-    /**
-     * Second main database command thingy
-     */
-    PreparedStatement preparedStatement;
-
     ExecutorService awaitExec = Executors.newFixedThreadPool(1);
 
     /**
      * ID to be used for identification of ServerComThread and RemoteHostMasterThread, same value for both if they're the ones talking with each other
      */
     public static int id = 0;
+
+    /**
+     * Database connectivity
+     */
+    private DBConnection database = new DBConnection();
 
     public ServerThread() throws IOException, SQLException, ClassNotFoundException {
         serverSocket.setSoTimeout(1000);
@@ -263,36 +239,36 @@ public class ServerThread implements Callable<String> {
         //execUpdate("DROP DATABASE " + dbname);
 
         // USE or CREATE database
-        if (execUpdate("USE " + dbname) != -1) // if database exists, good
+        if (database.execUpdate("USE " + database.getDbname()) != -1) // if database exists, good
         {
-            System.out.println("Database \"" + dbname + "\" successfully selected");
+            System.out.println("Database \"" + database.getDbname() + "\" successfully selected");
         }
         else // time to create it
         {
-            System.out.println("No database \"" + dbname + "\" found, creating...");
+            System.out.println("No database \"" + database.getDbname() + "\" found, creating...");
             // create db
-            if (execUpdate("CREATE DATABASE " + dbname) != -1)
+            if (database.execUpdate("CREATE DATABASE " + database.getDbname()) != -1)
             {
-                System.out.println("Database \""+ dbname + "\" created");
+                System.out.println("Database \""+ database.getDbname() + "\" created");
             }
             else
             {
-                System.out.println("Error creating database \"" + dbname + "\"");
+                System.out.println("Error creating database \"" + database.getDbname() + "\"");
             }
 
             // select it
-            if (execUpdate("USE " + dbname) != -1)
+            if (database.execUpdate("USE " + database.getDbname()) != -1)
             {
-                System.out.println("Database \"" + dbname + "\" successfully selected");
+                System.out.println("Database \"" + database.getDbname() + "\" successfully selected");
             }
             else
             {
-                System.out.println("Unrecoverable error selecting database \"" + dbname + "\", contact system administrator");
+                System.out.println("Unrecoverable error selecting database \"" + database.getDbname() + "\", contact system administrator");
                 return "UNRECOVERABLE DATABASE ERROR";
             }
 
             // create account table
-            if (execUpdate("CREATE TABLE `account` (\n" +
+            if (database.execUpdate("CREATE TABLE `account` (\n" +
                     "  `id` int(6) UNSIGNED NOT NULL,\n" +
                     "  `name` varchar(32) NOT NULL,\n" +
                     "  `password` varchar(80) NOT NULL,\n" +
@@ -309,7 +285,7 @@ public class ServerThread implements Callable<String> {
             }
 
             // create file table
-            if (execUpdate("CREATE TABLE `file` (\n" +
+            if (database.execUpdate("CREATE TABLE `file` (\n" +
                     "  `id` int(6) UNSIGNED NOT NULL,\n" +
                     "  `owner_id` int(6) UNSIGNED NOT NULL,\n" +
                     "  `name` varchar(32) NOT NULL,\n" +
@@ -332,7 +308,7 @@ public class ServerThread implements Callable<String> {
             }
 
             // create file_sharing table
-            if (execUpdate("CREATE TABLE `file_sharing` (\n" +
+            if (database.execUpdate("CREATE TABLE `file_sharing` (\n" +
                     "  `file_id` int(6) UNSIGNED NOT NULL,\n" +
                     "  `account_id` int(6) UNSIGNED NOT NULL\n" +
                     ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;") != -1)
@@ -347,7 +323,7 @@ public class ServerThread implements Callable<String> {
             }
 
             // create list_main table
-            if (execUpdate("CREATE TABLE `list_main` (\n" +
+            if (database.execUpdate("CREATE TABLE `list_main` (\n" +
                     "  `id` int(6) UNSIGNED NOT NULL,\n" +
                     "  `owner_id` int(6) UNSIGNED NOT NULL,\n" +
                     "  `name` varchar(80) NOT NULL,\n" +
@@ -365,7 +341,7 @@ public class ServerThread implements Callable<String> {
             }
 
             // create list_contents table
-            if (execUpdate("CREATE TABLE `list_contents` (\n" +
+            if (database.execUpdate("CREATE TABLE `list_contents` (\n" +
                     "  `list_id` int(6) UNSIGNED NOT NULL,\n" +
                     "  `file_id` int(6) UNSIGNED NOT NULL\n" +
                     ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;") != -1)
@@ -380,7 +356,7 @@ public class ServerThread implements Callable<String> {
             }
 
             // create list_sharing table
-            if (execUpdate("CREATE TABLE `list_sharing` (\n" +
+            if (database.execUpdate("CREATE TABLE `list_sharing` (\n" +
                     "  `list_id` int(6) UNSIGNED NOT NULL,\n" +
                     "  `account_id` int(6) UNSIGNED NOT NULL\n" +
                     ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;") != -1)
@@ -395,7 +371,7 @@ public class ServerThread implements Callable<String> {
             }
 
             // create indexes on account
-            if (execUpdate("ALTER TABLE `account`\n" +
+            if (database.execUpdate("ALTER TABLE `account`\n" +
                     "  ADD PRIMARY KEY (`id`),\n" +
                     "  ADD UNIQUE KEY `name` (`name`);") != -1)
             {
@@ -409,7 +385,7 @@ public class ServerThread implements Callable<String> {
             }
 
             // create indexes on file
-            if (execUpdate("ALTER TABLE `file`\n" +
+            if (database.execUpdate("ALTER TABLE `file`\n" +
                     "  ADD PRIMARY KEY (`id`),\n" +
                     "  ADD KEY `owner_id` (`owner_id`),\n" +
                     "  ADD KEY `name` (`name`);") != -1)
@@ -424,7 +400,7 @@ public class ServerThread implements Callable<String> {
             }
 
             // create indexes on file_sharing
-            if (execUpdate("ALTER TABLE `file_sharing`\n" +
+            if (database.execUpdate("ALTER TABLE `file_sharing`\n" +
                     "  ADD PRIMARY KEY (`file_id`,`account_id`),\n" +
                     "  ADD KEY `account_id` (`account_id`);") != -1)
             {
@@ -438,7 +414,7 @@ public class ServerThread implements Callable<String> {
             }
 
             // create indexes on list_contents
-            if (execUpdate("ALTER TABLE `list_contents`\n" +
+            if (database.execUpdate("ALTER TABLE `list_contents`\n" +
                     "  ADD PRIMARY KEY (`list_id`,`file_id`),\n" +
                     "  ADD KEY `file_id` (`file_id`);") != -1)
             {
@@ -452,7 +428,7 @@ public class ServerThread implements Callable<String> {
             }
 
             // create indexes on list_main
-            if (execUpdate("ALTER TABLE `list_main`\n" +
+            if (database.execUpdate("ALTER TABLE `list_main`\n" +
                     "  ADD PRIMARY KEY (`id`),\n" +
                     "  ADD KEY `owner_id` (`owner_id`);") != -1)
             {
@@ -466,7 +442,7 @@ public class ServerThread implements Callable<String> {
             }
 
             // create indexes on list_sharing
-            if (execUpdate("ALTER TABLE `list_sharing`\n" +
+            if (database.execUpdate("ALTER TABLE `list_sharing`\n" +
                     "  ADD PRIMARY KEY (`list_id`,`account_id`),\n" +
                     "  ADD KEY `account_id` (`account_id`);") != -1)
             {
@@ -480,7 +456,7 @@ public class ServerThread implements Callable<String> {
             }
 
             // create auto_increment on account
-            if (execUpdate("ALTER TABLE `account`\n" +
+            if (database.execUpdate("ALTER TABLE `account`\n" +
                     "  MODIFY `id` int(6) UNSIGNED NOT NULL AUTO_INCREMENT;") != -1)
             {
                 System.out.println("Auto increment on \"account\" created");
@@ -493,7 +469,7 @@ public class ServerThread implements Callable<String> {
             }
 
             // create auto_increment on file
-            if (execUpdate("ALTER TABLE `file`\n" +
+            if (database.execUpdate("ALTER TABLE `file`\n" +
                     "  MODIFY `id` int(6) UNSIGNED NOT NULL AUTO_INCREMENT;") != -1)
             {
                 System.out.println("Auto increment on \"file\" created");
@@ -506,7 +482,7 @@ public class ServerThread implements Callable<String> {
             }
 
             // create auto_increment on list_main
-            if (execUpdate("ALTER TABLE `list_main`\n" +
+            if (database.execUpdate("ALTER TABLE `list_main`\n" +
                     "  MODIFY `id` int(6) UNSIGNED NOT NULL AUTO_INCREMENT;") != -1)
             {
                 System.out.println("Auto increment on \"list_main\" created");
@@ -519,7 +495,7 @@ public class ServerThread implements Callable<String> {
             }
 
             // create constraints on file
-            if (execUpdate("ALTER TABLE `file`\n" +
+            if (database.execUpdate("ALTER TABLE `file`\n" +
                     "  ADD CONSTRAINT `file_ibfk_1` FOREIGN KEY (`owner_id`) REFERENCES `account` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;") != -1)
             {
                 System.out.println("Constraints on \"file\" created");
@@ -532,7 +508,7 @@ public class ServerThread implements Callable<String> {
             }
 
             // create constraints on file_sharing
-            if (execUpdate("ALTER TABLE `file_sharing`\n" +
+            if (database.execUpdate("ALTER TABLE `file_sharing`\n" +
                     "  ADD CONSTRAINT `file_sharing_ibfk_1` FOREIGN KEY (`file_id`) REFERENCES `file` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,\n" +
                     "  ADD CONSTRAINT `file_sharing_ibfk_2` FOREIGN KEY (`account_id`) REFERENCES `account` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;") != -1)
             {
@@ -546,7 +522,7 @@ public class ServerThread implements Callable<String> {
             }
 
             // create constraints on list_contents
-            if (execUpdate("ALTER TABLE `list_contents`\n" +
+            if (database.execUpdate("ALTER TABLE `list_contents`\n" +
                     "  ADD CONSTRAINT `list_contents_ibfk_1` FOREIGN KEY (`file_id`) REFERENCES `file` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,\n" +
                     "  ADD CONSTRAINT `list_contents_ibfk_2` FOREIGN KEY (`list_id`) REFERENCES `list_main` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;") != -1)
             {
@@ -560,7 +536,7 @@ public class ServerThread implements Callable<String> {
             }
 
             // create constraints on list_main
-            if (execUpdate("ALTER TABLE `list_main`\n" +
+            if (database.execUpdate("ALTER TABLE `list_main`\n" +
                     "  ADD CONSTRAINT `list_main_ibfk_1` FOREIGN KEY (`owner_id`) REFERENCES `account` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;") != -1)
             {
                 System.out.println("Constraints on \"list_main\" created");
@@ -573,7 +549,7 @@ public class ServerThread implements Callable<String> {
             }
 
             // create constraints on list_sharing
-            if (execUpdate("ALTER TABLE `list_sharing`\n" +
+            if (database.execUpdate("ALTER TABLE `list_sharing`\n" +
                     "  ADD CONSTRAINT `list_sharing_ibfk_1` FOREIGN KEY (`account_id`) REFERENCES `account` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,\n" +
                     "  ADD CONSTRAINT `list_sharing_ibfk_2` FOREIGN KEY (`list_id`) REFERENCES `list_main` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;") != -1)
             {
@@ -591,7 +567,7 @@ public class ServerThread implements Callable<String> {
         while (keepAlive)
         {
             delayCounter++;
-            addNewRemoteHost();
+            //addNewRemoteHost();
 
             /*
             if (serverCom.isEmpty())
@@ -633,7 +609,7 @@ public class ServerThread implements Callable<String> {
             //sendCommandTo(serverCom.get(1).talksWith, String.valueOf(delayCounter));
             //System.out.println("test");
             //addNewRemoteHost();
-
+            /*
             for (ServerComThread com : serverCom)
             {
                 //System.out.println(com);
@@ -693,7 +669,7 @@ public class ServerThread implements Callable<String> {
                     }
                 }
                 //keepAlive = false;
-            }
+            }*/
             //Thread.currentThread().wait(100); // this and sleep make somehow permanently brick the thread. I'm tired of this, so enjoy the spam if you ever put a print in here
             //break;
             if (delayCounter == 5) delayCounter = 0;
@@ -706,70 +682,5 @@ public class ServerThread implements Callable<String> {
         System.out.println("SERVERTHREADEND");
         exec.shutdownNow();
         return null;
-    }
-
-    /**
-     * Executes command on database
-     * @param command Command to execute
-     * @return Integer that gets returned as result of statement.executeUpdate, or -1 if error occurs
-     * @throws SQLException If database connection breaks
-     */
-    public int execUpdate(String command) throws SQLException {
-        Statement statement = connection.createStatement();
-        try
-        {
-            int returnCode = statement.executeUpdate(command);
-            //System.out.println(returnCode);
-            return returnCode;
-        }
-        catch (SQLException sqlException)
-        {
-            System.out.println("Command \"" + command + "\" failed\t" + sqlException.getMessage() + ": " + sqlException.getErrorCode());
-        }
-        finally {
-            statement.close();
-        }
-        return -1;
-    }
-
-    /**
-     * Executes INSERT, UPDATE or DELETE query on the database
-     * @param command Command to execute
-     * @return ResultSet that gets returned as a result of statement.executeQuery
-     * @throws SQLException If database connection breaks
-     */
-    public ResultSet execQuery(String command) throws SQLException {
-        Statement statement = connection.createStatement();
-        try
-        {
-            ResultSet returnSet = statement.executeQuery(command);
-            //System.out.println(returnCode);
-            return returnSet;
-        }
-        catch (SQLException sqlException)
-        {
-            System.out.println("Command \"" + command + "\" failed\t" + sqlException.getMessage() + ": " + sqlException.getErrorCode());
-        }
-        finally {
-            statement.close();
-        }
-        return statement.executeQuery("");
-    }
-
-    public ResultSet searchDatabase(String command) throws SQLException {
-        preparedStatement = connection.prepareStatement(command);
-        try
-        {
-            ResultSet returnSet = preparedStatement.executeQuery();
-            return returnSet;
-        }
-        catch (SQLException sqlException)
-        {
-            System.out.println("Command \"" + command + "\" failed\t" + sqlException.getMessage() + ": " + sqlException.getErrorCode());
-        }
-        finally {
-            //preparedStatement.close();
-        }
-        return (preparedStatement = connection.prepareStatement("")).executeQuery();
     }
 }
