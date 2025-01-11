@@ -504,46 +504,585 @@ public class ServerComThread implements Callable<String> {
                                         "WHERE `name` = \"" + loginReg + "\";");
                                 sendMsg.println(loginSetReg.getString("id"));
                                 sendMsg.println(loginSetReg.getString("type"));
-                                break;
                             }
                             else
                             {
                                 sendMsg.println("REGISTER_ERROR");
-                                break;
                             }
 
                         }
                         else
                         {
                             sendMsg.println("REGISTER_ERROR");
-                            break;
                         }
-                        //break; // unreachable statement :(
+                        break;
                     case "REGISTER_LIST":
+                        int listAccId = Integer.parseInt(responseList.get(responsesListIndex++));
+                        String listNameReg = responseList.get(responsesListIndex++);
+                        String listDescReg = responseList.get(responsesListIndex++);
+                        String listTypeReg = responseList.get(responsesListIndex++);
+
+                        if (listAccId == 0)
+                        {
+                            ResultSet regListAdmChkSet = database.searchDatabase("SELECT `type`\n" +
+                                    "FROM `account`\n" +
+                                    "WHERE `id` = " + accountId + ";");
+                            regListAdmChkSet.next();
+                            if (!regListAdmChkSet.getString("type").equals("admin"))
+                            {
+                                sendMsg.println("REGISTER_LIST_ERROR");
+                                break;
+                            }
+                        }
+
+                        if (database.execUpdate("INSERT INTO `list_main`(`owner_id`, `name`, `description`, `type`)\n" +
+                                "VALUES (\"" + listAccId + "\", \"" + listNameReg + "\", \"" + listDescReg + "\", \"" + listTypeReg + "\");") != -1)
+                        {
+                            ResultSet regListSet = database.searchDatabase("SELECT `id`\n" +
+                                    "FROM `list_main`\n" +
+                                    "WHERE `owner_id` = \"" + listAccId + "\"\n" +
+                                    "AND `name` = \"" + listNameReg + "\"\n" +
+                                    "AND `description` = \"" + listDescReg + "\"\n" +
+                                    "AND `type` = \"" + listTypeReg + "\";");
+                            regListSet.next();
+                            int soundAmountRegList = Integer.parseInt(responseList.get(responsesListIndex++));
+                            for (int i=0; i<soundAmountRegList; i++)
+                            {
+                                database.execUpdate("INSERT INTO `list_contents`(`list_id`, `file_id`)\n" +
+                                        "VALUES (" + regListSet.getInt("id") + ", " + Integer.parseInt(responseList.get(responsesListIndex++)) + ");");
+                            }
+                            sendMsg.println("REGISTER_LIST_CORRECT");
+                        }
+                        else
+                        {
+                            sendMsg.println("REGISTER_LIST_ERROR");
+                        }
                         break;
                     case "REGISTER_FILE":
+                        String fileNameReg = responseList.get(responsesListIndex++);
+                        String fileDescReg = responseList.get(responsesListIndex++);
+                        String fileDurReg = responseList.get(responsesListIndex++);
+                        int fileSizeReg = Integer.parseInt(responseList.get(responsesListIndex++));
+                        String fileFormReg = responseList.get(responsesListIndex++);
+                        String fileTypeReg = responseList.get(responsesListIndex++);
+                        String fileDateReg = responseList.get(responsesListIndex++);
+
+                        String filePathReg = "./sound_files/\"" + fileNameReg + "." + fileFormReg + "\"";
+                        if (fileDateReg.equalsIgnoreCase("null"))
+                        {
+                            if (database.execUpdate("INSERT INTO `file`(`owner_id`, `name`, `description`, `path`, `duration`, `size`, `format`, `type)\n" +
+                                    "VALUES (" + accountId + ", \"" + fileNameReg + "\", \"" + fileDescReg + "\", \"" + filePathReg + "\", \"" + fileDurReg + "\", " + fileSizeReg + ", \"" + fileFormReg + "\", \"" + fileTypeReg + "\");") != -1)
+                            {
+                                sendMsg.println("REGISTER_FILE_CORRECT");
+                                ResultSet fileRegSet = database.searchDatabase("SELECT `id`\n" +
+                                        "FROM `file`\n" +
+                                        "WHERE `owner_id` = " + accountId + "\n" +
+                                        "AND `name` = \"" + fileNameReg + "\";");
+                                fileRegSet.next();
+                                sendMsg.println(fileRegSet.getInt("id"));
+                            }
+                            else
+                            {
+                                sendMsg.println("REGISTER_FILE_ERROR");
+                            }
+                        }
+                        else
+                        {
+                            if (database.execUpdate("INSERT INTO `file`(`owner_id`, `name`, `description`, `path`, `duration`, `size`, `format`, `type`, `date_added`)\n" +
+                                    "VALUES (" + accountId + ", \"" + fileNameReg + "\", \"" + fileDescReg + "\", \"" + filePathReg + "\", \"" + fileDurReg + "\", " + fileSizeReg + ", \"" + fileFormReg + "\", \"" + fileTypeReg + "\", \"" + fileDateReg + "\");") != -1)
+                            {
+                                sendMsg.println("REGISTER_FILE_CORRECT");
+                                ResultSet fileRegSet = database.searchDatabase("SELECT `id`\n" +
+                                        "FROM `file`\n" +
+                                        "WHERE `owner_id` = " + accountId + "\n" +
+                                        "AND `name` = \"" + fileNameReg + "\";");
+                                fileRegSet.next();
+                                sendMsg.println(fileRegSet.getInt("id"));
+                            }
+                            else
+                            {
+                                sendMsg.println("REGISTER_FILE_ERROR");
+                            }
+                        }
                         break;
                     case "FILE_DELETE":
+                        int fileIdDel = Integer.parseInt(responseList.get(responsesListIndex++));
+                        ResultSet fileDelSet = database.searchDatabase("SELECT `owner_id`\n" +
+                                "FROM `file`\n" +
+                                "WHERE `id` = " + fileIdDel + ";");
+                        if (fileDelSet.next())
+                        {
+                            if (fileDelSet.getInt("owner_id") == accountId)
+                            {
+                                if (database.execUpdate("DELETE FROM `file`\n" +
+                                        "WHERE `id` = " + fileIdDel + ";") != -1)
+                                {
+                                    sendMsg.println("FILE_DELETE_APPROVED");
+                                }
+                                else
+                                {
+                                    sendMsg.println("FILE_DELETE_ERROR");
+                                }
+                            }
+                            else
+                            {
+                                sendMsg.println("FILE_DELETE_ERROR");
+                            }
+                        }
+                        else
+                        {
+                            sendMsg.println("FILE_DELETE_ERROR");
+                        }
                         break;
                     case "FILE_SHARE_REQUEST":
+                        int fileIdShare = Integer.parseInt(responseList.get(responsesListIndex++));
+                        int accIdShareFile = Integer.parseInt(responseList.get(responsesListIndex++));
+
+                        ResultSet fileShareSet = database.searchDatabase("SELECT `owner_id`\n" +
+                                "FROM `file`\n" +
+                                "WHERE `id` = " + fileIdShare + ";");
+                        if (fileShareSet.next())
+                        {
+                            if (fileShareSet.getInt("owner_id") != accountId)
+                            {
+                                break;
+                            }
+                        }
+                        else
+                        {
+                            break;
+                        }
+
+                        fileShareSet = database.searchDatabase("SELECT *\n" +
+                                "FROM `file_sharing`\n" +
+                                "WHERE `file_id` = " + fileIdShare + "\n" +
+                                "AND `account_id` = " + accIdShareFile + ";");
+                        if (fileShareSet.next())
+                        {
+                            break;
+                        }
+
+                        database.execUpdate("INSERT INTO `file_sharing`(`file_id`, `account_id`)\n" +
+                                "VALUES (" + fileIdShare + ", " + accIdShareFile + ";");
                         break;
                     case "LIST_DELETE":
+                        int listIdDel = Integer.parseInt(responseList.get(responsesListIndex++));
+                        ResultSet listDelSet = database.searchDatabase("SELECT `owner_id`\n" +
+                                "FROM `list_main`\n" +
+                                "WHERE `id` = " + listIdDel + ";");
+                        if (listDelSet.next())
+                        {
+                            if (listDelSet.getInt("owner_id") == accountId)
+                            {
+                                if (database.execUpdate("DELETE FROM `list_main`\n" +
+                                        "WHERE `id` = " + listIdDel + ";") != -1)
+                                {
+                                    sendMsg.println("LIST_DELETE_APPROVED");
+                                }
+                                else
+                                {
+                                    sendMsg.println("LIST_DELETE_ERROR");
+                                }
+                            }
+                            else
+                            {
+                                sendMsg.println("LIST_DELETE_ERROR");
+                            }
+                        }
+                        else
+                        {
+                            sendMsg.println("LIST_DELETE_ERROR");
+                        }
                         break;
                     case "LIST_SHARE_REQUEST":
+                        int listIdShare = Integer.parseInt(responseList.get(responsesListIndex++));
+                        int accIdShareList = Integer.parseInt(responseList.get(responsesListIndex++));
+
+                        ResultSet listShareSet = database.searchDatabase("SELECT `owner_id`\n" +
+                                "FROM `list_main`\n" +
+                                "WHERE `id` = " + listIdShare + ";");
+                        if (listShareSet.next())
+                        {
+                            if (listShareSet.getInt("owner_id") != accountId)
+                            {
+                                break;
+                            }
+                        }
+                        else
+                        {
+                            break;
+                        }
+
+                        listShareSet = database.searchDatabase("SELECT *\n" +
+                                "FROM `file_sharing`\n" +
+                                "WHERE `file_id` = " + listIdShare + "\n" +
+                                "AND `account_id` = " + accIdShareList + ";");
+                        if (listShareSet.next())
+                        {
+                            break;
+                        }
+
+                        database.execUpdate("INSERT INTO `list_sharing`(`list_id`, `account_id`)\n" +
+                                "VALUES (" + listIdShare + ", " + accIdShareList + ";");
+                        break;
+                    case "ADD_FILE_TO_LIST":
+                        int listIdListAdd = Integer.parseInt(responseList.get(responsesListIndex++));
+                        int fileIdListAdd = Integer.parseInt(responseList.get(responsesListIndex++));
+
+                        ResultSet listListAddSet = database.searchDatabase("SELECT `owner_id`\n" +
+                                "FROM `list_main`\n" +
+                                "WHERE `id` = " + listIdListAdd + ";");
+                        if (listListAddSet.next())
+                        {
+                            if (listListAddSet.getInt("owner_id") != accountId)
+                            {
+                                sendMsg.println("ADD_FILE_TO_LIST_ERROR");
+                                break;
+                            }
+                        }
+                        else
+                        {
+                            sendMsg.println("ADD_FILE_TO_LIST_ERROR");
+                            break;
+                        }
+
+                        listListAddSet = database.searchDatabase("SELECT *\n" +
+                                "FROM `list_contents`\n" +
+                                "WHERE `list_id` = " + listIdListAdd + "\n" +
+                                "AND `file_id` = " + fileIdListAdd + ";");
+                        if (listListAddSet.next())
+                        {
+                            sendMsg.println("ADD_FILE_TO_LIST_ERROR");
+                            break;
+                        }
+
+                        if (database.execUpdate("INSERT INTO `list_contents`(`list_id`, `file_id`)\n" +
+                                "VALUES (" + listIdListAdd + ", " + fileIdListAdd + ";") != -1)
+                        {
+                            sendMsg.println("ADD_FILE_TO_LIST_APPROVED");
+                        }
+                        else
+                        {
+                            sendMsg.println("ADD_FILE_TO_LIST_ERROR");
+                        }
+                        break;
+                    case "REMOVE_FILE_FROM_LIST":
+                        int listIdListRem = Integer.parseInt(responseList.get(responsesListIndex++));
+                        int fileIdListRem = Integer.parseInt(responseList.get(responsesListIndex++));
+
+                        ResultSet listListRemSet = database.searchDatabase("SELECT `owner_id`\n" +
+                                "FROM `list_main`\n" +
+                                "WHERE `id` = " + listIdListRem + ";");
+                        if (listListRemSet.next())
+                        {
+                            if (listListRemSet.getInt("owner_id") != accountId)
+                            {
+                                sendMsg.println("REMOVE_FILE_TO_LIST_ERROR");
+                                break;
+                            }
+                        }
+                        else
+                        {
+                            sendMsg.println("REMOVE_FILE_TO_LIST_ERROR");
+                            break;
+                        }
+
+                        listListRemSet = database.searchDatabase("SELECT *\n" +
+                                "FROM `list_contents`\n" +
+                                "WHERE `list_id` = " + listIdListRem + "\n" +
+                                "AND `file_id` = " + fileIdListRem + ";");
+                        if (listListRemSet.next())
+                        {
+                            sendMsg.println("REMOVE_FILE_TO_LIST_ERROR");
+                            break;
+                        }
+
+                        if (database.execUpdate("DELETE FROM `list_contents`\n" +
+                                "WHERE `list_id` = " + listIdListRem + "\n" +
+                                "AND `file_id`= " + fileIdListRem + ";") != -1)
+                        {
+                            sendMsg.println("REMOVE_FILE_TO_LIST_APPROVED");
+                        }
+                        else
+                        {
+                            sendMsg.println("REMOVE_FILE_TO_LIST_ERROR");
+                        }
+                        break;
+                    case "FILE_UNSHARE_REQUEST":
+                        int fileIdShareRem = Integer.parseInt(responseList.get(responsesListIndex++));
+                        int accIdShareFileRem = Integer.parseInt(responseList.get(responsesListIndex++));
+
+                        ResultSet fileShareRemSet = database.searchDatabase("SELECT `owner_id`\n" +
+                                "FROM `file`\n" +
+                                "WHERE `id` = " + fileIdShareRem + ";");
+                        if (fileShareRemSet.next())
+                        {
+                            if (fileShareRemSet.getInt("owner_id") != accountId)
+                            {
+                                sendMsg.println("FILE_UNSHARE_ERROR");
+                                break;
+                            }
+                        }
+                        else
+                        {
+                            sendMsg.println("FILE_UNSHARE_ERROR");
+                            break;
+                        }
+
+                        fileShareSet = database.searchDatabase("SELECT *\n" +
+                                "FROM `file_sharing`\n" +
+                                "WHERE `file_id` = " + fileIdShareRem + "\n" +
+                                "AND `account_id` = " + accIdShareFileRem + ";");
+                        if (!fileShareSet.next())
+                        {
+                            sendMsg.println("FILE_UNSHARE_ERROR");
+                            break;
+                        }
+
+                        if (database.execUpdate("DELETE FROM `file_sharing`\n" +
+                                "WHERE `file_id` = " + fileIdShareRem + "\n" +
+                                "AND `account_id` = " + accIdShareFileRem + ";") != -1)
+                        {
+                            sendMsg.println("FILE_UNSHARE_APPROVED");
+                        }
+                        else
+                        {
+                            sendMsg.println("FILE_UNSHARE_ERROR");
+                        }
+                        break;
+                    case "FILE_UNSHARE_ALL_REQUEST":
+                        int fileIdShareRemAll = Integer.parseInt(responseList.get(responsesListIndex++));
+
+                        ResultSet fileShareRemAllSet = database.searchDatabase("SELECT `owner_id`\n" +
+                                "FROM `file`\n" +
+                                "WHERE `id` = " + fileIdShareRemAll + ";");
+                        if (fileShareRemAllSet.next())
+                        {
+                            if (fileShareRemAllSet.getInt("owner_id") != accountId)
+                            {
+                                sendMsg.println("FILE_UNSHARE_ALL_ERROR");
+                                break;
+                            }
+                        }
+                        else
+                        {
+                            sendMsg.println("FILE_UNSHARE_ALL_ERROR");
+                            break;
+                        }
+
+                        fileShareSet = database.searchDatabase("SELECT *\n" +
+                                "FROM `file_sharing`\n" +
+                                "WHERE `file_id` = " + fileIdShareRemAll + ";");
+                        if (!fileShareSet.next())
+                        {
+                            sendMsg.println("FILE_UNSHARE_ALL_ERROR");
+                            break;
+                        }
+
+                        if (database.execUpdate("DELETE FROM `file_sharing`\n" +
+                                "WHERE `file_id` = " + fileIdShareRemAll + ";") != -1)
+                        {
+                            sendMsg.println("FILE_UNSHARE_ALL_APPROVED");
+                        }
+                        else
+                        {
+                            sendMsg.println("FILE_UNSHARE_ALL_ERROR");
+                        }
                         break;
                     case "BROWSE_FILES_REQUEST":
+                        int browseUserFileId = Integer.parseInt(responseList.get(responsesListIndex++));
+                        ResultSet browseUserFileSet = database.searchDatabase("SELECT `type`\n" +
+                                "FROM `account`\n" +
+                                "WHERE `id` = " + accountId + ";");
+                        browseUserFileSet.next();
+                        if (!browseUserFileSet.getString("type").equals("admin"))
+                        {
+                            sendMsg.println(0);
+                            break;
+                        }
+
+                        browseUserFileSet = database.searchDatabase("SELECT *\n" +
+                                "FROM `file`\n" +
+                                "WHERE `owner_id` = " + browseUserFileId + ";");
+                        int counter = 0;
+                        while (browseUserFileSet.next())
+                        {
+                            counter++;
+                        }
+                        sendMsg.println(counter);
+                        browseUserFileSet.beforeFirst();
+                        while (browseUserFileSet.next())
+                        {
+                            sendMsg.println(browseUserFileSet.getInt("id"));
+                            sendMsg.println(browseUserFileSet.getInt("owner_id"));
+                            sendMsg.println(browseUserFileSet.getString("name"));
+                            sendMsg.println(browseUserFileSet.getString("description"));
+                            sendMsg.println(browseUserFileSet.getString("duration"));
+                            sendMsg.println(browseUserFileSet.getInt("size"));
+                            sendMsg.println(browseUserFileSet.getString("format"));
+                            sendMsg.println(browseUserFileSet.getString("type"));
+                            sendMsg.println(browseUserFileSet.getString("date_added"));
+                        }
                         break;
                     case "FILE_DELETE_USER":
-                        break;
-                    case "REGISTER_LIST_SERVER":
+                        int delUserFileId = Integer.parseInt(responseList.get(responsesListIndex++));
+                        int delFileFileId = Integer.parseInt(responseList.get(responsesListIndex++));
+
+                        ResultSet delUserFileSet = database.searchDatabase("SELECT `type`\n" +
+                                "FROM `account`\n" +
+                                "WHERE `id` = " + accountId + ";");
+                        delUserFileSet.next();
+                        if (!delUserFileSet.getString("type").equals("admin"))
+                        {
+                            sendMsg.println("FILE_DELETE_USER_ERROR");
+                            break;
+                        }
+
+                        delUserFileSet = database.searchDatabase("SELECT *\n" +
+                                "FROM`file`\n" +
+                                "WHERE `owner_id` = " + delUserFileId + "\n" +
+                                "AND `id` = " + delFileFileId + ";");
+                        if (!delUserFileSet.next())
+                        {
+                            sendMsg.println("FILE_DELETE_USER_ERROR");
+                            break;
+                        }
+                        else
+                        {
+                            if ((database.execUpdate("DELETE FROM `file`\n" +
+                                    "WHERE `id` = " + delFileFileId + ";")) != -1)
+                            {
+                                sendMsg.println("FILE_DELETE_USER_APPROVED");
+                            }
+                            else
+                            {
+                                sendMsg.println("FILE_DELETE_USER_ERROR");
+                            }
+                        }
                         break;
                     case "BROWSE_LISTS_REQUEST":
+                        int browseUserListId = Integer.parseInt(responseList.get(responsesListIndex++));
+                        ResultSet browseUserListSet = database.searchDatabase("SELECT `type`\n" +
+                                "FROM `account`\n" +
+                                "WHERE `id` = " + accountId + ";");
+                        browseUserListSet.next();
+                        if (!browseUserListSet.getString("type").equals("admin"))
+                        {
+                            sendMsg.println(0);
+                            break;
+                        }
+
+                        browseUserListSet = database.searchDatabase("SELECT *\n" +
+                                "FROM `list_main`\n" +
+                                "WHERE `owner_id` = " + browseUserListId + ";");
+                        int counterLists = 0;
+                        while (browseUserListSet.next())
+                        {
+                            counterLists++;
+                        }
+                        sendMsg.println(counterLists);
+                        browseUserListSet.beforeFirst();
+                        while (browseUserListSet.next())
+                        {
+                            sendMsg.println(browseUserListSet.getInt("id"));
+                            sendMsg.println(browseUserListSet.getInt("owner_id"));
+                            sendMsg.println(browseUserListSet.getString("name"));
+                            sendMsg.println(browseUserListSet.getString("description"));
+                            sendMsg.println(browseUserListSet.getString("type"));
+                            ResultSet browseUserListInnerSet = database.searchDatabase("SELECT *\n" +
+                                    "FROM `file` INNER JOIN `list_contents`\n" +
+                                    "ON `file`.`id` = `list_contents`.`file_id`\n" +
+                                    "WHERE `list_contents`.`list_id` = " + browseUserListSet.getInt("id"));
+                            int counterFiles = 0;
+                            while (browseUserListInnerSet.next())
+                            {
+                                counterFiles++;
+                            }
+                            sendMsg.println(counterFiles);
+                            browseUserListInnerSet.beforeFirst();
+                            while (browseUserListInnerSet.next())
+                            {
+                                sendMsg.println(browseUserListInnerSet.getInt("id"));
+                                sendMsg.println(browseUserListInnerSet.getInt("owner_id"));
+                                sendMsg.println(browseUserListInnerSet.getString("name"));
+                                sendMsg.println(browseUserListInnerSet.getString("description"));
+                                sendMsg.println(browseUserListInnerSet.getString("duration"));
+                                sendMsg.println(browseUserListInnerSet.getInt("size"));
+                                sendMsg.println(browseUserListInnerSet.getString("format"));
+                                sendMsg.println(browseUserListInnerSet.getString("type"));
+                                sendMsg.println(browseUserListInnerSet.getString("date_added"));
+                            }
+                        }
                         break;
                     case "LIST_DELETE_USER":
+                        int listIdDelUser = Integer.parseInt(responseList.get(responsesListIndex++));
+                        int userIdDelUser = Integer.parseInt(responseList.get(responsesListIndex++));
+
+                        ResultSet delUserListSet = database.searchDatabase("SELECT `type`\n" +
+                                "FROM `account`\n" +
+                                "WHERE `id` = " + accountId + ";");
+                        delUserListSet.next();
+                        if (!delUserListSet.getString("type").equals("admin"))
+                        {
+                            sendMsg.println(0);
+                            break;
+                        }
+
+                        delUserListSet = database.searchDatabase("SELECT `owner_id`\n" +
+                                "FROM `list_main`\n" +
+                                "WHERE `id` = " + listIdDelUser + ";");
+                        if (delUserListSet.next())
+                        {
+                            if (delUserListSet.getInt("owner_id") == userIdDelUser)
+                            {
+                                if (database.execUpdate("DELETE FROM `list_main`\n" +
+                                        "WHERE `id` = " + listIdDelUser + ";") != -1)
+                                {
+                                    sendMsg.println("LIST_DELETE_APPROVED");
+                                }
+                                else
+                                {
+                                    sendMsg.println("LIST_DELETE_ERROR");
+                                }
+                            }
+                            else
+                            {
+                                sendMsg.println("LIST_DELETE_ERROR");
+                            }
+                        }
+                        else
+                        {
+                            sendMsg.println("LIST_DELETE_ERROR");
+                        }
                         break;
                     case "LISTEN_SOUND_REQUEST":
                         break;
                     case "CHANGE_USER_TYPE":
+                        String userIdUserType = responseList.get(responsesListIndex++);
+                        String userIdTypeType = responseList.get(responsesListIndex++);
+
+                        ResultSet chngUserTypeSet = database.searchDatabase("SELECT `type`\n" +
+                                "FROM `account`\n" +
+                                "WHERE `id` = " + accountId + ";");
+                        chngUserTypeSet.next();
+                        if (!chngUserTypeSet.getString("type").equals("admin"))
+                        {
+                            break;
+                        }
+
+                        chngUserTypeSet = database.searchDatabase("SELECT `type`\n" +
+                                "FROM `account`\n" +
+                                "WHERE `id` = " + userIdUserType + ";");
+                        if (chngUserTypeSet.next())
+                        {
+                            database.execUpdate("UPDATE `account` SET\n" +
+                                    "`type` = \"" + userIdTypeType + "\"\n" +
+                                    "WHERE `id` = " + userIdUserType);
+                        }
+                        else
+                        {
+                            break;
+                        }
                         break;
                     case "PING":
                         pingAck = true;

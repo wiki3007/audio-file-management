@@ -651,7 +651,7 @@ public class RemoteHostMasterThread implements Callable<String> {
      */
     SoundList makeTempList(String name, String description)
     {
-        return new SoundList(tempListIndex++, account.getId(), name, description, "temporary");
+        return new SoundList(tempListIndex--, account.getId(), name, description, "temporary");
     }
 
     /**
@@ -671,17 +671,21 @@ public class RemoteHostMasterThread implements Callable<String> {
             return null;
         }
         sendMsg.println("REGISTER_LIST");
-        sendMsg.println(account.getId());
+        //sendMsg.println(account.getId());
         sendMsg.println(name);
+        sendMsg.println(description);
         sendMsg.println(type);
         sendMsg.println(soundFiles.size());
         for (int i = 0; i< soundFiles.size(); i++)
         {
+            /*
             ArrayList<String> elements = soundFiles.get(i).getArrayOfElements();
             for (int j=0; j<elements.size(); j++)
             {
                 sendMsg.println(elements.get(i));
             }
+             */
+            sendMsg.println(soundFiles.get(i).getId());
         }
 
         SoundList soundList = null;
@@ -708,7 +712,22 @@ public class RemoteHostMasterThread implements Callable<String> {
     }
 
     /**
-     * Registers a file with the server, and if successful, adds it localy
+     * Registers a file with the server, and if successful, adds it locally
+     * Auto-fills date_added as "null" string
+     * @param name Name of file
+     * @param description Description of filde
+     * @param duration Play duration of file
+     * @param size Size of file in KB
+     * @param format Format of file
+     * @param type Type of file, "private" or "public"
+     * @return The newly added file or null if encountered error
+     */
+    SoundFile addFile(String name, String description, String duration, int size, String format, String type)
+    {
+        return addFile(name, description, duration, size, format, type, "null");
+    }
+    /**
+     * Registers a file with the server, and if successful, adds it locally
      * @param name Name of file
      * @param description Description of filde
      * @param duration Play duration of file
@@ -727,7 +746,7 @@ public class RemoteHostMasterThread implements Callable<String> {
         }
 
         sendMsg.println("REGISTER_FILE");
-        sendMsg.println(account.getId());
+        //sendMsg.println(account.getId());
         sendMsg.println(name);
         sendMsg.println(description);
         sendMsg.println(duration);
@@ -815,6 +834,7 @@ public class RemoteHostMasterThread implements Callable<String> {
         if (soundFile.getOwner_id() != account.getId()) return false;
 
         sendMsg.println("FILE_SHARE_REQUEST");
+        sendMsg.println(soundFile.getId());
         sendMsg.println(shareWith);
 
         return true;
@@ -858,6 +878,149 @@ public class RemoteHostMasterThread implements Callable<String> {
     }
 
     /**
+     * Adds a given file to the given list
+     * @param soundList List to add file to
+     * @param soundFile File to add to list
+     * @return True if server agrees, false otherwise
+     */
+    boolean addFileToList(SoundList soundList, SoundFile soundFile)
+    {
+        if (account.getType().equals("guest"))
+        {
+            System.out.println("PERMISSION DENIED");
+            return false;
+        }
+        if (soundList.getOwner_id() != account.getId()) return false;
+        if (soundFile.getOwner_id() != account.getId()) return false;
+
+        sendMsg.println("ADD_FILE_TO_LIST");
+        sendMsg.println(soundList.getId());
+        sendMsg.println(soundFile.getId());
+
+        try
+        {
+            readCommands();
+        }
+        catch (IOException | InterruptedException socketError)
+        {
+            System.out.println("Can't communicate with server, please restart connection or contact system administrator if error persists");
+            return false;
+        }
+
+        String command = commandsList.get(commandsListIndex++);
+        if (command.equals("ADD_FILE_TO_LIST_APPROVED"))
+        {
+            return true;
+        }
+        else return false;
+    }
+
+    /**
+     * Removes a given file from the given list
+     * @param soundList List to remove file to
+     * @param soundFile File to remove to list
+     * @return True if server agrees, false otherwise
+     */
+    boolean removeFileFromList(SoundList soundList, SoundFile soundFile)
+    {
+        if (account.getType().equals("guest"))
+        {
+            System.out.println("PERMISSION DENIED");
+            return false;
+        }
+        if (soundList.getOwner_id() != account.getId()) return false;
+        if (soundFile.getOwner_id() != account.getId()) return false;
+
+        sendMsg.println("REMOVE_FILE_FROM_LIST");
+        sendMsg.println(soundList.getId());
+        sendMsg.println(soundFile.getId());
+
+        try
+        {
+            readCommands();
+        }
+        catch (IOException | InterruptedException socketError)
+        {
+            System.out.println("Can't communicate with server, please restart connection or contact system administrator if error persists");
+            return false;
+        }
+
+        String command = commandsList.get(commandsListIndex++);
+        if (command.equals("REMOVE_FILE_FROM_LIST_APPROVED"))
+        {
+            return true;
+        }
+        else return false;
+    }
+
+    /**
+     * Unshares a file with a user
+     * @param soundFile File to unshare
+     * @param who ID of user to unshare
+     * @return True if server agrees, false otherwise
+     */
+    boolean unshareFileFromUser(SoundFile soundFile, int who)
+    {
+        if (account.getType().equals("guest"))
+        {
+            System.out.println("PERMISSION DENIED");
+            return false;
+        }
+        if (soundFile.getOwner_id() != account.getId()) return false;
+
+        sendMsg.println("FILE_UNSHARE_REQUEST");
+        sendMsg.println(soundFile.getId());
+        sendMsg.println(who);
+
+        try
+        {
+            readCommands();
+        }
+        catch (IOException | InterruptedException socketError)
+        {
+            System.out.println("Can't communicate with server, please restart connection or contact system administrator if error persists");
+            return false;
+        }
+
+        String command = commandsList.get(commandsListIndex++);
+        if (command.equals("FILE_UNSHARE_APPROVED"))
+        {
+            return true;
+        }
+        else return false;
+    }
+
+    boolean unshareFileFromAll(SoundFile soundFile)
+    {
+        if (account.getType().equals("guest"))
+        {
+            System.out.println("PERMISSION DENIED");
+            return false;
+        }
+        if (soundFile.getOwner_id() != account.getId()) return false;
+
+        sendMsg.println("FILE_UNSHARE_ALL_REQUEST");
+        sendMsg.println(soundFile.getId());
+
+        try
+        {
+            readCommands();
+        }
+        catch (IOException | InterruptedException socketError)
+        {
+            System.out.println("Can't communicate with server, please restart connection or contact system administrator if error persists");
+            return false;
+        }
+
+        String command = commandsList.get(commandsListIndex++);
+        if (command.equals("FILE_UNSHARE_ALL_APPROVED"))
+        {
+            return true;
+        }
+        else return false;
+    }
+
+    /**
      * Shares a given list with a user of given ID. Sharing public list is allowed, in case they go private
      * @param soundList List to share
      * @param shareWith ID of user to share with
@@ -870,7 +1033,6 @@ public class RemoteHostMasterThread implements Callable<String> {
             System.out.println("PERMISSION DENIED");
             return false;
         }
-
         if (soundList.getOwner_id() != account.getId()) return false;
 
         sendMsg.println("LIST_SHARE_REQUEST");
@@ -1022,23 +1184,35 @@ public class RemoteHostMasterThread implements Callable<String> {
      */
     SoundList addListAsServer(String name, String description, ArrayList<SoundFile> soundFiles) throws IOException, InterruptedException
     {
-        if (!account.getType().equals("admin"))
+        if (account.getType().equals("guest"))
         {
             System.out.println("PERMISSION DENIED");
             return null;
         }
-
-        sendMsg.println("REGISTER_LIST_SERVER");
+        sendMsg.println("REGISTER_LIST");
         sendMsg.println(0);
         sendMsg.println(name);
         sendMsg.println(description);
         sendMsg.println("public");
+        sendMsg.println(soundFiles.size());
+        for (int i = 0; i< soundFiles.size(); i++)
+        {
+            /*
+            ArrayList<String> elements = soundFiles.get(i).getArrayOfElements();
+            for (int j=0; j<elements.size(); j++)
+            {
+                sendMsg.println(elements.get(i));
+            }
+             */
+            sendMsg.println(soundFiles.get(i).getId());
+        }
 
+        SoundList soundList = null;
         try
         {
             readCommands();
         }
-        catch (IOException | InterruptedException socketError)
+        catch (IOException socketError)
         {
             System.out.println("Can't communicate with server, please restart connection or contact system administrator if error persists");
             return null;
@@ -1048,7 +1222,8 @@ public class RemoteHostMasterThread implements Callable<String> {
         if (command.equals("REGISTER_LIST_CORRECT"))
         {
             int listId = Integer.parseInt(commandsList.get(commandsListIndex++));
-            SoundList soundList = new SoundList(listId, 0, name, description,"public");
+            soundList = new SoundList(listId, 0, name, description, "public");
+            soundList.setFiles(soundFiles);
             listOfSoundLists.add(soundList);
             return soundList;
         }

@@ -27,7 +27,12 @@ import java.util.concurrent.Executors;
  *  Upload private files        Y / N / N
  *  Delete private files        Y / N / N
  *  Share private files         Y / N / N
+ *  Add file to list            Y / N / N
+ *  Remove file from list       Y / N / N
+ *  Unshare file from user      Y / N / N
+ *  Unshare file from all       Y / N / N
  *  Get public lists            Y / N / N
+ *  Get private lists           Y / N / N
  *  Create public lists         Y / N / N
  *  Create private lists        Y / N / N
  *  Delete private lists        Y / N / N

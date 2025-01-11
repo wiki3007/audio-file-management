@@ -3,6 +3,9 @@ import java.sql.SQLException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+// add actually sending the files to register file functions
+// add actually deleting the files to delete file function
+
 /**
  * Function Checkboxes, server-side
  * Code implemented / UI implemented (does the server even need UI?) / Tested
@@ -18,28 +21,32 @@ import java.util.concurrent.Executors;
  *  Log in to server            Y / N / N
  *  Get public files            Y / N / N
  *  Get private files           Y / N / N
- *  Upload public files         N / N / N
- *  Upload private files        N / N / N
- *  Delete private files        N / N / N
- *  Share private files         N / N / N
+ *  Upload public files         Y / N / N
+ *  Upload private files        Y / N / N
+ *  Delete private files        Y / N / N
+ *  Share private files         Y / N / N
+ *  Add file to list            Y / N / N
+ *  Remove file from list       Y / N / N
+ *  Unshare file from user      Y / N / N
+ *  Unshare file from all       Y / N / N
  *  Get public lists            Y / N / N
  *  Get private lists           Y / N / N
- *  Create public lists         N / N / N
- *  Create private lists        N / N / N
- *  Delete private lists        N / N / N
- *  Share private lists         N / N / N
+ *  Create public lists         Y / N / N
+ *  Create private lists        Y / N / N
+ *  Delete private lists        Y / N / N
+ *  Share private lists         Y / N / N
  *  Listen to files on server   N / N / N
  *  Download files from server  N / N / N
  *
  * Admin:
- *  All things from standard    N / N / N
- *  Add public files as server  N / N / N
- *  Browse other users files    N / N / N
- *  Delete other users files    N / N / N
- *  Add public lists as server  N / N / N
- *  Browse other users lists    N / N / N
- *  Delete other users lists    N / N / N
- *  Change other's account type N / N / N
+ *  All things from standard    Y / N / N
+ *  Add public files as server  Y / N / N
+ *  Browse other users files    Y / N / N
+ *  Delete other users files    Y / N / N
+ *  Add public lists as server  Y / N / N
+ *  Browse other users lists    Y / N / N
+ *  Delete other users lists    Y / N / N
+ *  Change other's account type Y / N / N
  */
 public class Main {
     public static void main(String[] args) throws SQLException, IOException, ClassNotFoundException {
