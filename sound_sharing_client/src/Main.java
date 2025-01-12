@@ -38,7 +38,7 @@ import java.util.concurrent.Executors;
  *  Delete private lists        Y / N / N
  *  Share private lists         Y / N / N
  *  Listen to files on server   N / N / N
- *  Download files from server  N / N / N
+ *  Download files from server  Y / N / N
  *
  * Admin:
  *  Add public files as server  Y / N / N
@@ -65,6 +65,7 @@ public class Main {
                 InetAddress serverAddress = InetAddress.getByName(address);
                 //System.out.println(serverAddress);
                 hostThread = new RemoteHostMasterThread(serverAddress, 53529);
+
                 break;
             }
             catch (ConnectException connectionRefused)

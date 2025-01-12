@@ -13,8 +13,6 @@ import java.util.concurrent.Executors;
  * Guest:
  *  Get public files            Y / N / N
  *  Get public lists            Y / N / N
- *  Make temporary lists        N / N / N   (client only)
- *  Listen to files on server   N / N / N   (client only)
  *
  * Standard:
  *  Registering account         Y / N / N
@@ -36,7 +34,7 @@ import java.util.concurrent.Executors;
  *  Delete private lists        Y / N / N
  *  Share private lists         Y / N / N
  *  Listen to files on server   N / N / N
- *  Download files from server  N / N / N
+ *  Download files from server  Y / N / N
  *
  * Admin:
  *  All things from standard    Y / N / N

@@ -17,6 +17,14 @@ public class ServerComThread implements Callable<String> {
      */
     PrintWriter sendMsg;
     /**
+     * Dedicated reader to receive the raw sound file data
+     */
+    DataInputStream soundFileSendOverReader;
+    /**
+     * Dedicated writer to send the raw sound file data
+     */
+    DataOutputStream soundFileSendOverWriter;
+    /**
      * Socket to facilitate communicating over the network
      */
     Socket socket;
@@ -36,6 +44,10 @@ public class ServerComThread implements Callable<String> {
      * Index of next-to-read-response
      */
     int responsesListIndex = 0;
+    /**
+     * Contains the data of sound file
+     */
+    byte[] lastFileData;
     /**
      * ID of the remote host that this thread communicates with, double as id of com thread
      */
@@ -71,6 +83,8 @@ public class ServerComThread implements Callable<String> {
         this.talksWith = id;
         receiveMsg = new BufferedReader(new InputStreamReader(socket.getInputStream()));
         sendMsg = new PrintWriter(socket.getOutputStream(), true);
+        soundFileSendOverReader = new DataInputStream(socket.getInputStream());
+        soundFileSendOverWriter = new DataOutputStream(socket.getOutputStream());
         sendMsg.println(talksWith);
     }
 
@@ -100,10 +114,22 @@ public class ServerComThread implements Callable<String> {
     private void readResponses() throws InterruptedException, IOException {
         try
         {
+            String response = "";
             while (true) // keep reading until .readLine throws a timeout
             {
-                String response = receiveMsg.readLine();
-                responseList.add(response);
+                if (!response.equals("SENDING_FILE_DATA"))
+                {
+                    response = receiveMsg.readLine();
+                    responseList.add(response);
+                }
+                else
+                {
+                    response = receiveMsg.readLine();
+                    String name = response;
+                    response = receiveMsg.readLine(); // size;
+                    int fileSize = Integer.parseInt(response);
+                    lastFileData = soundFileSendOverReader.readNBytes(fileSize);
+                }
             }
         }
         catch (SocketTimeoutException waitTooLong)
@@ -145,6 +171,46 @@ public class ServerComThread implements Callable<String> {
         }
         //System.out.println("MAIN ARRAY " + mainArray);
         return mainArray;
+    }
+
+    /**
+     * Sends the raw data of file with given path
+     * @param path Path of file to send
+     * @return True if file sent, false otherwise
+     * @throws IOException
+     */
+    boolean sendFileData(String path) throws IOException {
+        if (path.endsWith(".flac") || path.endsWith(".mp3") || path.endsWith(".ogg") || path.endsWith(".wav") || path.endsWith(".wma") || path.endsWith(".webm"))
+        {
+            File file = new File(path);
+            if (!file.exists()) return false;
+            FileInputStream fileInputStream = new FileInputStream(file);
+            sendMsg.println("SENDING_FILE_DATA");
+            sendMsg.println(file.getName());
+            sendMsg.println(file.length());
+            byte[] buffer = fileInputStream.readNBytes((int) file.length());
+            soundFileSendOverWriter.write(buffer);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Writes the raw data of file from the buffer
+     * @param name Name of file to save
+     * @return True, IDK
+     * @throws IOException
+     */
+    boolean writeFileData(String name) throws IOException {
+        File file = new File("./sound_files/" + name);
+        if (file.exists())
+        {
+            file.delete();
+        }
+        file.createNewFile();
+        FileOutputStream fileOutputStream = new FileOutputStream(file);
+        fileOutputStream.write(lastFileData);
+        return true;
     }
 
     /**
@@ -567,12 +633,13 @@ public class ServerComThread implements Callable<String> {
                         String fileTypeReg = responseList.get(responsesListIndex++);
                         String fileDateReg = responseList.get(responsesListIndex++);
 
-                        String filePathReg = "./sound_files/\"" + fileNameReg + "." + fileFormReg + "\"";
+                        String filePathReg = "./sound_files/" + fileNameReg + "." + fileFormReg;
                         if (fileDateReg.equalsIgnoreCase("null"))
                         {
                             if (database.execUpdate("INSERT INTO `file`(`owner_id`, `name`, `description`, `path`, `duration`, `size`, `format`, `type)\n" +
                                     "VALUES (" + accountId + ", \"" + fileNameReg + "\", \"" + fileDescReg + "\", \"" + filePathReg + "\", \"" + fileDurReg + "\", " + fileSizeReg + ", \"" + fileFormReg + "\", \"" + fileTypeReg + "\");") != -1)
                             {
+                                writeFileData(fileNameReg + "." + fileFormReg);
                                 sendMsg.println("REGISTER_FILE_CORRECT");
                                 ResultSet fileRegSet = database.searchDatabase("SELECT `id`\n" +
                                         "FROM `file`\n" +
@@ -607,7 +674,7 @@ public class ServerComThread implements Callable<String> {
                         break;
                     case "FILE_DELETE":
                         int fileIdDel = Integer.parseInt(responseList.get(responsesListIndex++));
-                        ResultSet fileDelSet = database.searchDatabase("SELECT `owner_id`\n" +
+                        ResultSet fileDelSet = database.searchDatabase("SELECT `owner_id`, `path`\n" +
                                 "FROM `file`\n" +
                                 "WHERE `id` = " + fileIdDel + ";");
                         if (fileDelSet.next())
@@ -617,6 +684,8 @@ public class ServerComThread implements Callable<String> {
                                 if (database.execUpdate("DELETE FROM `file`\n" +
                                         "WHERE `id` = " + fileIdDel + ";") != -1)
                                 {
+                                    File file = new File(fileDelSet.getString("path"));
+                                    if (file.exists()) file.delete();
                                     sendMsg.println("FILE_DELETE_APPROVED");
                                 }
                                 else
@@ -952,6 +1021,8 @@ public class ServerComThread implements Callable<String> {
                             if ((database.execUpdate("DELETE FROM `file`\n" +
                                     "WHERE `id` = " + delFileFileId + ";")) != -1)
                             {
+                                File file = new File(delUserFileSet.getString("path"));
+                                if (file.exists()) file.delete();
                                 sendMsg.println("FILE_DELETE_USER_APPROVED");
                             }
                             else
@@ -1056,6 +1127,22 @@ public class ServerComThread implements Callable<String> {
                         }
                         break;
                     case "LISTEN_SOUND_REQUEST":
+                        int soundIdListen = Integer.parseInt(responseList.get(responsesListIndex++));
+
+                        ResultSet listenSet = database.searchDatabase("SELECT *\n" +
+                                "FROM `file` INNER JOIN `file_sharing`\n" +
+                                "ON `file`.`id` = `file_sharing`.`file_id`\n" +
+                                "WHERE (`file`.`owner_id` = " + accountId + "\n" +
+                                "OR `file_sharing`.`account_id` = " + accountId + ")\n" +
+                                "AND `file`.`id` = " + soundIdListen + ";");
+                        if (!listenSet.next())
+                        {
+                            sendMsg.println("LISTEN_SOUND_ERROR");
+                            break;
+                        }
+
+                        sendFileData(listenSet.getString("path"));
+                        sendMsg.println("LISTEN_SOUND_APPROVED");
                         break;
                     case "CHANGE_USER_TYPE":
                         String userIdUserType = responseList.get(responsesListIndex++);

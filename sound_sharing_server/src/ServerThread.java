@@ -71,6 +71,7 @@ public class ServerThread implements Callable<String> {
 
     public ServerThread() throws IOException, SQLException, ClassNotFoundException {
         serverSocket.setSoTimeout(1000);
+        //System.out.println("Awaiting connection on: " + serverSocket.getInetAddress() + ":" + serverSocket.getLocalPort());
     }
 
     /**
@@ -131,19 +132,20 @@ public class ServerThread implements Callable<String> {
         //System.out.println("ATTEMPTING NEW CONNECTION");
         if (serverAwait == null)
         {
+            //System.out.println("test");
             serverAwait = new ServerAwait(serverSocket);
             serverAwaitFuture = awaitExec.submit(serverAwait);
         }
-
         // If no new connections formed, start waiting again
         else if (serverAwait.status.equals("NoNewConnections"))
         {
+            //System.out.println("test2");
             serverAwait = new ServerAwait(serverSocket);
             serverAwaitFuture = awaitExec.submit(serverAwait);
         }
-
         else if (serverAwaitFuture.isDone())
         {
+            //System.out.println("test3");
             ServerComThread tempCom = serverAwaitFuture.get();
             serverCom.add(tempCom);
             exec.submit(tempCom);
@@ -566,6 +568,7 @@ public class ServerThread implements Callable<String> {
         int delayCounter = 1;
         while (keepAlive)
         {
+            addNewRemoteHost();
             delayCounter++;
             //addNewRemoteHost();
 

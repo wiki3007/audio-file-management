@@ -36,7 +36,14 @@ public class RemoteHostMasterThread implements Callable<String> {
      * Writer used to send messages over the network
      */
     PrintWriter sendMsg;
-
+    /**
+     * Dedicated reader to receive the raw sound file data
+     */
+    DataInputStream soundFileSendOverReader;
+    /**
+     * Dedicated writer to send the raw sound file data
+     */
+    DataOutputStream soundFileSendOverWriter;
     /**
      * List of commands received from main server
      */
@@ -45,6 +52,10 @@ public class RemoteHostMasterThread implements Callable<String> {
      * Index of next-to-execute command
      */
     int commandsListIndex = 0;
+    /**
+     * Contains the data of sound file
+     */
+    byte[] lastFileData;
 
     private ArrayList<SoundFile> listOfSoundFiles = new ArrayList<>();
     private ArrayList<SoundList> listOfSoundLists = new ArrayList<>();
@@ -63,10 +74,15 @@ public class RemoteHostMasterThread implements Callable<String> {
      * @throws IOException If stuff breaks
      */
     public RemoteHostMasterThread(InetAddress serverAddress, int port) throws IOException {
+
         this.socket = new Socket(serverAddress, port);
         socket.setSoTimeout(1000);
         receiveMsg = new BufferedReader(new InputStreamReader(socket.getInputStream()));
         sendMsg = new PrintWriter(socket.getOutputStream(), true);
+
+        soundFileSendOverReader = new DataInputStream(socket.getInputStream());
+        soundFileSendOverWriter = new DataOutputStream(socket.getOutputStream());
+        System.out.println("test");
         while (sessionId == -1) // must get the ID before proceeding
         {
             try
@@ -79,6 +95,7 @@ public class RemoteHostMasterThread implements Callable<String> {
                 // just try again lmao
             }
         }
+
     }
 
     /**
@@ -89,11 +106,24 @@ public class RemoteHostMasterThread implements Callable<String> {
         //System.out.println("HOST READING COMMANDS");
         try
         {
+            String command = "";
             while (true) // keep reading until .readLine throws a timeout
             {
-                String command = receiveMsg.readLine();
-                //System.out.println(" HOST READ " + command);
-                commandsList.add(command);
+                if (!command.equals("SENDING_FILE_DATA"))
+                {
+                    command = receiveMsg.readLine();
+                    //System.out.println(" HOST READ " + command);
+                    commandsList.add(command);
+                }
+                else
+                {
+                    command = receiveMsg.readLine();
+                    String name = command;
+                    command = receiveMsg.readLine();
+                    int fileSize = Integer.parseInt(command);
+                    lastFileData = soundFileSendOverReader.readNBytes(fileSize);
+
+                }
             }
         }
         catch (SocketTimeoutException waitTooLong)
@@ -101,6 +131,57 @@ public class RemoteHostMasterThread implements Callable<String> {
             // means no more messages to read, so just go on with your life
             //System.out.println("HOST DIDNT READ COMMANDS");
         }
+    }
+
+    /**
+     * Sends the raw data of file with given path
+     * @param path Path of file to send
+     * @return True if file sent, false otherwise
+     * @throws IOException
+     */
+    boolean sendFileData(String path) throws IOException {
+        if (path.endsWith(".flac") || path.endsWith(".mp3") || path.endsWith(".ogg") || path.endsWith(".wav") || path.endsWith(".wma") || path.endsWith(".webm"))
+        {
+            File file = new File(path);
+            if (!file.exists()) return false;
+            FileInputStream fileInputStream = new FileInputStream(file);
+            sendMsg.println("SENDING_FILE_DATA");
+            sendMsg.println(file.getName());
+            sendMsg.println(file.length());
+            byte[] buffer = fileInputStream.readNBytes((int) file.length());
+            soundFileSendOverWriter.write(buffer);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Writes the raw data of file from the buffer
+     * @param name Name of file to save
+     * @param download whether the file is set to download or temporary
+     * @return True, IDK
+     * @throws IOException
+     */
+    boolean writeFileData(String name, boolean download) throws IOException {
+        File file;
+        if (download)
+        {
+            file = new File("./downloads/" + name);
+        }
+        else
+        {
+            file = new File("./tmp/" + name);
+            file.deleteOnExit();
+        }
+
+        if (file.exists())
+        {
+            file.delete();
+        }
+        file.createNewFile();
+        FileOutputStream fileOutputStream = new FileOutputStream(file);
+        fileOutputStream.write(lastFileData);
+        return true;
     }
 
     /**
@@ -720,11 +801,11 @@ public class RemoteHostMasterThread implements Callable<String> {
      * @param size Size of file in KB
      * @param format Format of file
      * @param type Type of file, "private" or "public"
+     * @param path Path to file to send its data to server
      * @return The newly added file or null if encountered error
      */
-    SoundFile addFile(String name, String description, String duration, int size, String format, String type)
-    {
-        return addFile(name, description, duration, size, format, type, "null");
+    SoundFile addFile(String name, String description, String duration, int size, String format, String type, String path) throws IOException {
+        return addFile(name, description, duration, size, format, type, "null", path);
     }
     /**
      * Registers a file with the server, and if successful, adds it locally
@@ -735,10 +816,10 @@ public class RemoteHostMasterThread implements Callable<String> {
      * @param format Format of file
      * @param type Type of file, "private" or "public"
      * @param date_added Date added of file, DB autofills it as current_timestamp, give null unless you have a plan
+     * @param path Path to file to send its data to server
      * @return The newly added file or null if encountered error
      */
-    SoundFile addFile(String name, String description, String duration, int size, String format, String type, String date_added)
-    {
+    SoundFile addFile(String name, String description, String duration, int size, String format, String type, String date_added, String path) throws IOException {
         if (account.getType().equals("guest"))
         {
             System.out.println("PERMISSION DENIED");
@@ -754,6 +835,7 @@ public class RemoteHostMasterThread implements Callable<String> {
         sendMsg.println(format);
         sendMsg.println(type);
         sendMsg.println(date_added);
+        sendFileData(path);
 
         try
         {
@@ -1051,10 +1133,10 @@ public class RemoteHostMasterThread implements Callable<String> {
      * @param size Size of file in KB
      * @param format Format of file
      * @param date_added Date added of file, DB autofills it as current_timestamp, give null unless you have a plan
+     * @param path Path to file to send its data to server
      * @return The newly added file or null if encountered error
      */
-    SoundFile addFileAsServer(String name, String description, String duration, int size, String format, String date_added)
-    {
+    SoundFile addFileAsServer(String name, String description, String duration, int size, String format, String date_added, String path) throws IOException {
         if (!account.getType().equals("admin"))
         {
             System.out.println("PERMISSION DENIED");
@@ -1070,6 +1152,7 @@ public class RemoteHostMasterThread implements Callable<String> {
         sendMsg.println(format);
         sendMsg.println("public");
         sendMsg.println(date_added);
+        sendFileData(path);
 
         try
         {
@@ -1366,16 +1449,8 @@ public class RemoteHostMasterThread implements Callable<String> {
 
             if (!download)
             {
-                String path = ".\\tmp\\" + soundFile.getName() + "." + soundFile.getFormat();
-                File sound = new File(path);
-                FileWriter soundWriter = new FileWriter(path);
-
-                if (sound.exists()) sound.delete();
-                sound.createNewFile();
-                sound.deleteOnExit();
-
-                soundWriter.write(commandsList.get(commandsListIndex++));
-                soundWriter.close();
+                String path = "./tmp/" + soundFile.getName() + "." + soundFile.getFormat();
+                writeFileData(path, false);
                 // thing to play sound here
             }
             else
@@ -1386,18 +1461,10 @@ public class RemoteHostMasterThread implements Callable<String> {
                     return;
                 }
 
-                String path = ".\\downloads\\" + soundFile.getName() + "." + soundFile.getFormat();
-                File sound = new File(path);
-                FileWriter soundWriter = new FileWriter(path);
-
-                if (sound.exists()) sound.delete();
-                sound.createNewFile();
-
-                soundWriter.write(commandsList.get(commandsListIndex++));
-                soundWriter.close();
+                String path = "./downloads/" + soundFile.getName() + "." + soundFile.getFormat();
+                writeFileData(path, true);
+                // thing to play sound here
             }
-
-
         }
     }
 

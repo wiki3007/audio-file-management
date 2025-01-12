@@ -25,6 +25,7 @@ public class ServerAwait implements Callable<ServerComThread> {
         ExecutorService exec = null;
         try
         {
+            //System.out.println(status);
             exec = Executors.newFixedThreadPool(1);
             status = "Awaiting";
             socket = serverSocket.accept();
