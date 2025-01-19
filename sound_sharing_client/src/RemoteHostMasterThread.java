@@ -15,7 +15,7 @@ public class RemoteHostMasterThread implements Callable<String> {
      * ID of Remote Host Master Thread for identification by Main Server
      */
     private int sessionId = -1;
-    private Account account = null;
+    public Account account = null;
     /**
      * ArrayList of tasks to execute converted to Future class
      */

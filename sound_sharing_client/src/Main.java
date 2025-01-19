@@ -1,10 +1,11 @@
-import java.io.BufferedWriter;
+import javafx.application.Application;
+import javafx.application.Platform;
+import javafx.scene.Scene;
+import javafx.scene.control.Alert;
+import javafx.stage.Stage;
+
 import java.io.IOException;
-import java.net.ConnectException;
 import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.net.UnknownHostException;
-import java.util.Scanner;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -49,8 +50,60 @@ import java.util.concurrent.Executors;
  *  Delete other users lists    Y / N / N
  *  Change other's account type Y / N / N
  */
-public class Main {
-    public static void main(String[] args) throws IOException {
+public class Main extends Application{
+
+    Stage window;
+    RemoteHostMasterThread hostThread;
+
+    private boolean createAddressScene(){
+        RemoteHostMasterThread hostThread;
+        try
+        {
+            InetAddress serverAddress = InetAddress.getLocalHost();
+            hostThread = new RemoteHostMasterThread(serverAddress, 53529);
+        }
+        catch (IOException connectionRefused)
+        {
+            System.out.println("Connection refused, bad address or server is closed");
+            Alert errorAlert = new Alert(Alert.AlertType.ERROR);
+            errorAlert.setTitle("Test");
+            errorAlert.setContentText("Connection refused, bad address or server is closed.");
+            errorAlert.showAndWait();
+            errorAlert.setOnHidden((event) -> Platform.exit());
+
+            return false;
+        }
+
+        ExecutorService exec = Executors.newCachedThreadPool();
+        exec.submit(hostThread);
+        this.hostThread = hostThread;
+
+        Alert successAlert = new Alert(Alert.AlertType.INFORMATION);
+        successAlert.setTitle("Test");
+        successAlert.setContentText("Successfully connected.");
+        successAlert.showAndWait();
+
+        return true;
+    }
+
+    @Override
+    public void start(Stage window){
+        this.window = window;
+        if(createAddressScene()){
+            LoginGUI loginScreen = new LoginGUI(this.window, this.hostThread);
+            Scene loginScene = new Scene(loginScreen.createLoginScreen());
+
+            this.window.setScene(loginScene);
+            this.window.show();
+        }
+
+
+    }
+
+    public static void main(String[] args){
+        launch(Main.class);
+
+        /*
         Scanner in = new Scanner(System.in);
         String address;
 
@@ -59,10 +112,11 @@ public class Main {
         do {
             try
             {
-                System.out.print("Connect to: ");
-                address = in.next();
+                //System.out.print("Connect to: ");
+                //address = in.next();
 
-                InetAddress serverAddress = InetAddress.getByName(address);
+                //InetAddress serverAddress = InetAddress.getByName(address);
+                InetAddress serverAddress = InetAddress.getLocalHost();
                 //System.out.println(serverAddress);
                 hostThread = new RemoteHostMasterThread(serverAddress, 53529);
 
@@ -75,6 +129,9 @@ public class Main {
         } while(true);
         ExecutorService exec = Executors.newCachedThreadPool();
         exec.submit(hostThread);
+
+        System.out.println("ok");
+         */
     }
 }
 
