@@ -1,6 +1,7 @@
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.scene.Scene;
+import javafx.scene.SubScene;
 import javafx.scene.control.Alert;
 import javafx.stage.Stage;
 
@@ -60,6 +61,7 @@ public class Main extends Application{
         try
         {
             InetAddress serverAddress = InetAddress.getLocalHost();
+            System.out.println(InetAddress.getLocalHost());
             hostThread = new RemoteHostMasterThread(serverAddress, 53529);
         }
         catch (IOException connectionRefused)

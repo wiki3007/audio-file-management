@@ -78,6 +78,7 @@ public class ServerComThread implements Callable<String> {
      * Database connectivity
      */
     private DBConnection database = new DBConnection();
+    int testCounter = 0;
     ServerComThread(Socket socket, int id) throws IOException, SQLException {
         this.socket = socket;
         this.talksWith = id;
@@ -117,10 +118,13 @@ public class ServerComThread implements Callable<String> {
             String response = "";
             while (true) // keep reading until .readLine throws a timeout
             {
+
                 if (!response.equals("SENDING_FILE_DATA"))
                 {
+                    //System.out.println("test " + testCounter++);
                     response = receiveMsg.readLine();
                     responseList.add(response);
+                    //System.out.println("read " + response);
                 }
                 else
                 {
@@ -526,31 +530,41 @@ public class ServerComThread implements Callable<String> {
                     case "LOGIN_REQUEST":
                         String loginLog = responseList.get(responsesListIndex++);
                         String passwordLog = responseList.get(responsesListIndex++);
+                        if (loginLog.equalsIgnoreCase("guest"))
+                        {
+                            sendMsg.println("-1");
+                            sendMsg.println("guest");
+                        }
+                        System.out.println("login: " + loginLog);
+                        System.out.println("pass: " + passwordLog);
                         ResultSet loginSetLog = database.searchDatabase("SELECT *\n" +
                                 "FROM `account`\n" +
                                 "WHERE `name` = \"" + loginLog + "\";");
+                        System.out.println("test 0");
                         if (!loginSetLog.next())
                         {
                             sendMsg.println("LOGIN_ERROR");
                             break;
                         }
-                        while (loginSetLog.next())
+                        System.out.println("test 1");
+                        if (!passwordLog.equals(loginSetLog.getString("password")))
                         {
-                            if (!passwordLog.equals(loginSetLog.getString("password")))
-                            {
-                                sendMsg.println("PASSWORD_ERROR");
-                                break;
-                            }
-                            else
-                            {
-                                sendMsg.println(loginSetLog.getString("id"));
-                                sendMsg.println(loginSetLog.getString("type"));
-                            }
+                            sendMsg.println("PASSWORD_ERROR");
+                            break;
                         }
+                        else
+                        {
+                            sendMsg.println(loginSetLog.getString("id"));
+                            sendMsg.println(loginSetLog.getString("type"));
+                            System.out.println("found id: " + loginSetLog.getString("id"));
+                            System.out.println("found type: " + loginSetLog.getString("type"));
+                        }
+                        System.out.println("test 2");
                         break;
                     case "REGISTER_REQUEST":
                         String loginReg = responseList.get(responsesListIndex++);
                         String passwordReg = responseList.get(responsesListIndex++);
+                        System.out.println("register test");
                         if (loginReg.equalsIgnoreCase("guest"))
                         {
                             sendMsg.println("REGISTER_ERROR");

@@ -157,7 +157,7 @@ public class ServerThread implements Callable<String> {
         }
         else
         {
-            System.out.println("Awaiting host connection\nPlease connect to: " + serverAddress);
+            //System.out.println("Awaiting host connection\nPlease connect to: " + serverAddress);
         }
     }
 
