@@ -2,9 +2,10 @@ import java.util.ArrayList;
 
 public class SoundFile {
     private int id, owner_id, size;
-    String name, description, duration, format, type, date_added;
+    String name, description, duration, format, type, date_added, path;
 
-    public SoundFile(int id, int owner_id, String name, String description, String duration, int size, String format, String type, String date_added) {
+    public SoundFile(int id, int owner_id, String name, String description, String duration, int size,
+                     String format, String type, String date_added) {
         this.id = id;
         this.owner_id = owner_id;
         this.name = name;
@@ -92,6 +93,10 @@ public class SoundFile {
     {
         return name + "." + format;
     }
+
+    public String getPath() { return path; }
+
+    public void setPath(String path) { this.path = path; }
 
     public ArrayList<String> getArrayOfElements()
     {

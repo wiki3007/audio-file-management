@@ -23,7 +23,7 @@ public class DBConnection {
     /**
      * Database connector
      */
-    private Connection connection = DriverManager.getConnection(url, login, password);
+    private Connection connection = DriverManager.getConnection(url + "/" + dbname, login, password);
     /**
      * Main database thingy to use commands from
      */

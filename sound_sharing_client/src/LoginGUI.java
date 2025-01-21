@@ -32,7 +32,8 @@ public class LoginGUI {
         loginButton.setOnAction((event) -> {
             if(this.host.loginProcedureArg(loginField.getText(), passwordField.getText())){
                 if(this.host.account.getType().equals("guest")){
-
+                    MainScreenGUI mainScreen = new MainScreenGUI(this.window, this.host);
+                    this.window.setScene(new Scene(mainScreen.createMainScreen("guest")));
                 }else if(this.host.account.getType().equals("standard")){
 
                 }else if(this.host.account.getType().equals("admin")){

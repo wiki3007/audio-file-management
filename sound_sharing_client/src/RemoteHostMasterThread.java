@@ -594,6 +594,7 @@ public class RemoteHostMasterThread implements Callable<String> {
             while (commandsListIndex < commandsList.size())
             {
                 String confirmation = commandsList.get(commandsListIndex++);
+                System.out.println(confirmation);
                 if (confirmation.equals("LOGIN_CORRECT"))
                 {
                     int loginId = Integer.parseInt(commandsList.get(commandsListIndex++));
@@ -1450,6 +1451,7 @@ public class RemoteHostMasterThread implements Callable<String> {
             if (!download)
             {
                 String path = "./tmp/" + soundFile.getName() + "." + soundFile.getFormat();
+                soundFile.setPath(path);
                 writeFileData(path, false);
                 // thing to play sound here
             }
@@ -1462,6 +1464,7 @@ public class RemoteHostMasterThread implements Callable<String> {
                 }
 
                 String path = "./downloads/" + soundFile.getName() + "." + soundFile.getFormat();
+                soundFile.setPath(path);
                 writeFileData(path, true);
                 // thing to play sound here
             }
