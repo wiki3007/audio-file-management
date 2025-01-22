@@ -1,10 +1,12 @@
 import javafx.collections.ObservableList;
+import javafx.geometry.Insets;
 import javafx.scene.Parent;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
 import javafx.scene.media.Media;
 import javafx.scene.media.MediaPlayer;
 import javafx.stage.Stage;
@@ -153,22 +155,189 @@ public class MainScreenGUI {
         listsButtons.getChildren().addAll(createListButton);
         listsLayout.setTop(listsButtons);
 
+        filesLayout.setPadding(new Insets(10, 10, 10, 10));
+        listsLayout.setPadding(new Insets(10, 10, 10, 10));
+        playerLayout.setPadding(new Insets(10, 10, 10, 10));
+
         layout.add(filesLayout, 0, 0);
-        layout.add(listsLayout, 0, 1);
-        layout.add(playerLayout, 1, 0);
+        layout.add(listsLayout, 1, 0);
+        layout.add(playerLayout, 0, 1);
+        layout.setPadding(new Insets(10, 10, 10, 10));
 
         return layout;
     }
 
     private Parent createStandardScreen(){
+        this.fileList = host.getPublicFileArray();
+        this.listLists = host.getPublicListArray();
+
+        TabPane tabPane = new TabPane();
         GridPane layout = new GridPane();
 
+        BorderPane filesLayout = new BorderPane();
+        BorderPane listsLayout = new BorderPane();
 
-        return layout;
+        HBox filesButtons = new HBox();
+        Button addFileButton = new Button("Load all files");
+
+        filesButtons.getChildren().addAll(addFileButton);
+
+        TableView fileTable = createFileTable();
+
+        for(SoundFile file : fileList){
+            fileTable.getItems().add(file);
+        }
+
+        TableView.TableViewSelectionModel<SoundFile> fileSelectionModel = fileTable.getSelectionModel();
+        fileSelectionModel.setSelectionMode(SelectionMode.SINGLE);
+
+        filesLayout.setTop(filesButtons);
+        filesLayout.setCenter(fileTable);
+
+        BorderPane playerLayout = new BorderPane();
+        HBox playerButtonsLayout = new HBox();
+        Button playButton = new Button("Play");
+        playButton.setOnAction((event) -> {
+            if(musicPlayer == null){
+                ObservableList<SoundFile> selectedFile = fileSelectionModel.getSelectedItems();
+                file = selectedFile.getFirst();
+                try {
+                    host.getSoundFile(file, false);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+
+                String path = file.getPath();
+                Media media = new Media(new File(path).toURI().toString());
+                musicPlayer = new MediaPlayer(media);
+            }
+            musicPlayer.play();
+        });
+
+        Button pauseButton = new Button("Pause");
+        pauseButton.setOnAction((event) -> {
+            if(this.musicPlayer != null){
+                musicPlayer.pause();
+            }
+        });
+
+        Button stopButton = new Button("Stop");
+        stopButton.setOnAction((event) -> {
+            if(this.musicPlayer != null){
+                musicPlayer.stop();
+                musicPlayer = null;
+            }
+        });
+
+        playerButtonsLayout.getChildren().addAll(playButton, pauseButton, stopButton);
+        playerLayout.setCenter(playerButtonsLayout);
+        filesLayout.setBottom(playerLayout);
+
+        HBox listsButtons = new HBox();
+        Button createListButton = new Button("Create temporary list");
+
+        listsButtons.getChildren().addAll(createListButton);
+        listsLayout.setTop(listsButtons);
+
+        layout.add(filesLayout, 0, 0);
+        layout.add(listsLayout, 0, 1);
+        layout.add(playerLayout, 1, 0);
+
+        Tab publicTab = new Tab("Public", layout);
+        Tab privateTab = new Tab("Private", new Label("Under construction"));
+        Tab shareTab = new Tab("Share", new Label("Under construction"));
+        Tab uploadTab = new Tab("Upload", new Label("Under construction"));
+
+        tabPane.getTabs().addAll(publicTab, privateTab, shareTab, uploadTab);
+        tabPane.setTabDragPolicy(TabPane.TabDragPolicy.FIXED);
+        tabPane.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
+
+        return tabPane;
     }
 
     private Parent createAdminScreen(){
+        this.fileList = host.getPublicFileArray();
+        this.listLists = host.getPublicListArray();
+
         GridPane layout = new GridPane();
-        return layout;
+        TabPane tabPane = new TabPane();
+
+        BorderPane filesLayout = new BorderPane();
+        BorderPane listsLayout = new BorderPane();
+
+        HBox filesButtons = new HBox();
+        Button addFileButton = new Button("Load all files");
+
+        filesButtons.getChildren().addAll(addFileButton);
+
+        TableView fileTable = createFileTable();
+
+        for(SoundFile file : fileList){
+            fileTable.getItems().add(file);
+        }
+
+        TableView.TableViewSelectionModel<SoundFile> fileSelectionModel = fileTable.getSelectionModel();
+        fileSelectionModel.setSelectionMode(SelectionMode.SINGLE);
+
+        filesLayout.setTop(filesButtons);
+        filesLayout.setCenter(fileTable);
+
+        BorderPane playerLayout = new BorderPane();
+        HBox playerButtonsLayout = new HBox();
+        Button playButton = new Button("Play");
+        playButton.setOnAction((event) -> {
+            if(musicPlayer == null){
+                ObservableList<SoundFile> selectedFile = fileSelectionModel.getSelectedItems();
+                file = selectedFile.getFirst();
+                try {
+                    host.getSoundFile(file, false);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+
+                String path = file.getPath();
+                Media media = new Media(new File(path).toURI().toString());
+                musicPlayer = new MediaPlayer(media);
+            }
+            musicPlayer.play();
+        });
+
+        Button pauseButton = new Button("Pause");
+        pauseButton.setOnAction((event) -> {
+            if(this.musicPlayer != null){
+                musicPlayer.pause();
+            }
+        });
+
+        Button stopButton = new Button("Stop");
+        stopButton.setOnAction((event) -> {
+            if(this.musicPlayer != null){
+                musicPlayer.stop();
+                musicPlayer = null;
+            }
+        });
+
+        playerButtonsLayout.getChildren().addAll(playButton, pauseButton, stopButton);
+        playerLayout.setCenter(playerButtonsLayout);
+        filesLayout.setBottom(playerLayout);
+
+        HBox listsButtons = new HBox();
+        Button createListButton = new Button("Create temporary list");
+
+        listsButtons.getChildren().addAll(createListButton);
+        listsLayout.setTop(listsButtons);
+
+        layout.add(filesLayout, 0, 0);
+        layout.add(listsLayout, 0, 1);
+        layout.add(playerLayout, 1, 0);
+
+        Tab publicTab = new Tab("Public", layout);
+        Tab privateTab = new Tab("Upload", new Label("Under construction"));
+        Tab usersTab = new Tab("Users", new Label("Under construction"));
+        tabPane.getTabs().addAll(publicTab, privateTab, usersTab);
+        tabPane.setTabDragPolicy(TabPane.TabDragPolicy.FIXED);
+        tabPane.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
+
+        return tabPane;
     }
 }

@@ -30,8 +30,26 @@ public class LoginGUI {
 
         Button loginButton = new Button("Sign in");
         loginButton.setOnAction((event) -> {
+            if(loginField.getText().isEmpty()){
+                Alert errorAlert = new Alert(Alert.AlertType.ERROR);
+                errorAlert.setTitle("Test");
+                errorAlert.setContentText("You must enter login!");
+                errorAlert.showAndWait();
+                return;
+            }
+            if(passwordField.getText().isEmpty()){
+                Alert errorAlert = new Alert(Alert.AlertType.ERROR);
+                errorAlert.setTitle("Test");
+                errorAlert.setContentText("You must enter password!");
+                errorAlert.showAndWait();
+                return;
+            }
             if(this.host.loginProcedureArg(loginField.getText(), passwordField.getText())){
                 if(this.host.account.getType().equals("guest")){
+                    Alert errorAlert = new Alert(Alert.AlertType.INFORMATION);
+                    errorAlert.setTitle("Test");
+                    errorAlert.setContentText("Welcome!");
+                    errorAlert.show();
                     MainScreenGUI mainScreen = new MainScreenGUI(this.window, this.host);
                     this.window.setScene(new Scene(mainScreen.createMainScreen("guest")));
                 }else if(this.host.account.getType().equals("standard")){
@@ -43,6 +61,7 @@ public class LoginGUI {
                 Alert errorAlert = new Alert(Alert.AlertType.ERROR);
                 errorAlert.setTitle("Test");
                 errorAlert.setContentText("Username or password is wrong, try again.");
+                errorAlert.showAndWait();
             };
         });
 
@@ -57,6 +76,7 @@ public class LoginGUI {
         loginLayout.getChildren().addAll(loginLabel, loginField, passwordLabel, passwordField, loginButton);
         loginScreenLayout.setCenter(loginLayout);
         loginScreenLayout.setTop(changeToSignUpButton);
+        loginScreenLayout.setPadding(new Insets(10, 10, 10, 10));
 
         return loginScreenLayout;
     }

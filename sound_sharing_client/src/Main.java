@@ -15,15 +15,15 @@ import java.util.concurrent.Executors;
  * Code implemented / UI implemented / Tested
  *
  * Guest:
- *  Get public files            Y / N / N
+ *  Get public files            Y / Y / N
  *  Get public lists            Y / N / N
  *  Make temporary lists        Y / N / N
- *  Listen to files on server   N / N / N
+ *  Listen to files on server   N / Y / N
  *
  * Standard:
- *  Registering account         Y / N / N
- *  Log in to server            Y / N / N
- *  Get public files            Y / N / N
+ *  Registering account         Y / Y / N
+ *  Log in to server            Y / Y / N
+ *  Get public files            Y / Y / N
  *  Get private files           Y / N / N
  *  Upload public files         Y / N / N
  *  Upload private files        Y / N / N
@@ -39,12 +39,12 @@ import java.util.concurrent.Executors;
  *  Create private lists        Y / N / N
  *  Delete private lists        Y / N / N
  *  Share private lists         Y / N / N
- *  Listen to files on server   N / N / N
+ *  Listen to files on server   N / Y / N
  *  Download files from server  Y / N / N
  *
  * Admin:
  *  Add public files as server  Y / N / N
- *  Browse other users files    Y / N / N
+ *  Browse other users files    Y / Y / N
  *  Delete other users files    Y / N / N
  *  Add public lists as server  Y / N / N
  *  Browse other users lists    Y / N / N

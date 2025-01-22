@@ -532,8 +532,10 @@ public class ServerComThread implements Callable<String> {
                         String passwordLog = responseList.get(responsesListIndex++);
                         if (loginLog.equalsIgnoreCase("guest"))
                         {
+                            sendMsg.println("LOGIN_CORRECT");
                             sendMsg.println("-1");
                             sendMsg.println("guest");
+                            break;
                         }
                         System.out.println("login: " + loginLog);
                         System.out.println("pass: " + passwordLog);
@@ -554,6 +556,7 @@ public class ServerComThread implements Callable<String> {
                         }
                         else
                         {
+                            sendMsg.println("LOGIN_CORRECT");
                             sendMsg.println(loginSetLog.getString("id"));
                             sendMsg.println(loginSetLog.getString("type"));
                             System.out.println("found id: " + loginSetLog.getString("id"));
