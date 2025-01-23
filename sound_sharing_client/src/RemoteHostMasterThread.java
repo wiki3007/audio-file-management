@@ -681,7 +681,7 @@ public class RemoteHostMasterThread implements Callable<String> {
             return null;
         }
         sendMsg.println("REGISTER_LIST");
-        //sendMsg.println(account.getId());
+        sendMsg.println(account.getId());
         sendMsg.println(name);
         sendMsg.println(description);
         sendMsg.println(type);
@@ -750,7 +750,7 @@ public class RemoteHostMasterThread implements Callable<String> {
         //System.out.println("path: " + path);
 
         sendMsg.println("REGISTER_FILE");
-        //sendMsg.println(account.getId());
+        sendMsg.println(account.getId());
         sendMsg.println(name);
         sendMsg.println(description);
         sendMsg.println(duration);

@@ -18,14 +18,6 @@ public class ServerComThread implements Callable<String> {
      */
     PrintWriter sendMsg;
     /**
-     * Dedicated reader to receive the raw sound file data
-     */
-    DataInputStream soundFileSendOverReader;
-    /**
-     * Dedicated writer to send the raw sound file data
-     */
-    DataOutputStream soundFileSendOverWriter;
-    /**
      * Socket to facilitate communicating over the network
      */
     Socket socket;
@@ -57,12 +49,6 @@ public class ServerComThread implements Callable<String> {
      * ID of account that this thread is communicating with
      */
     int accountId = -1;
-
-    /**
-     * Instead of serialization, you get this. Yes, it works, unlike serialization
-     */
-    private ArrayList<RemoteHostTaskDummy> thisIsYourSerializationNow = new ArrayList<>();
-
     /**
      * If host responded back to a ping
      */
@@ -86,8 +72,6 @@ public class ServerComThread implements Callable<String> {
         this.talksWith = id;
         receiveMsg = new BufferedReader(new InputStreamReader(socket.getInputStream()));
         sendMsg = new PrintWriter(socket.getOutputStream(), true);
-        soundFileSendOverReader = new DataInputStream(socket.getInputStream());
-        soundFileSendOverWriter = new DataOutputStream(socket.getOutputStream());
         sendMsg.println(talksWith);
     }
 
@@ -129,41 +113,6 @@ public class ServerComThread implements Callable<String> {
             // means no more messages to read, so just go on with your life
             //System.out.println(waitTooLong);
         }
-    }
-
-    /**
-     * Gets an ArrayList of parameters of a task with given taskId. If task doesn't exist, returns empty ArrayList
-     * @param taskId ID of task to get
-     * @return ArrayList of hostId, taskId, priority, status, result if given tasks exists, empty ArrayList otherwise
-     */
-    public ArrayList<String> getSerializationArray(int taskId)
-    {
-        for (RemoteHostTaskDummy dummy : thisIsYourSerializationNow)
-        {
-            if (dummy.taskId == taskId) return dummy.getArray();
-        }
-        return new ArrayList<>();
-    }
-
-    /**
-     * Gets an ArrayList of parameters of all tasks
-     * @return ArrayList of ArrayLists each with parameters hostId, taskId, priority, status, result
-     */
-    public ArrayList<ArrayList<String>> getSerializationArrayAll()
-    {
-        for (RemoteHostTaskDummy dummy : thisIsYourSerializationNow)
-        {
-            //System.out.print(dummy.getArray());
-        }
-        ArrayList<ArrayList<String>> mainArray = new ArrayList<>();
-        //System.out.println("GET ALL SERIALIZATION " + thisIsYourSerializationNow);
-        for (RemoteHostTaskDummy dummy : thisIsYourSerializationNow)
-        {
-            //System.out.print("ASDSADSAD " + dummy.getArray());
-            mainArray.add(dummy.getArray());
-        }
-        //System.out.println("MAIN ARRAY " + mainArray);
-        return mainArray;
     }
 
     /**
@@ -345,102 +294,8 @@ public class ServerComThread implements Callable<String> {
                 //System.out.println("SERVER PARSING RESPONSE " + response);
                 String rawArray;
                 boolean componentAlreadyExists;
-                RemoteHostTaskDummy component;
                 switch (response)
                 {
-                    /*
-                    case "RESPONSE_GET_TASK":
-                        rawArray = responseList.get(responsesListIndex);
-                        responsesListIndex++;
-                        //System.out.println(rawArray);
-                        rawArray = rawArray.replace("[", "");
-                        rawArray = rawArray.replace("]", "");
-                        //System.out.println(rawArray);
-                        String[] rawSplit = rawArray.split(", ");
-                        ArrayList<String> components = new ArrayList<>(List.of(rawSplit));
-                        //System.out.println(components);
-
-                        // search for if given task was already read, if yes, then update it, if no then add it
-                        componentAlreadyExists = false;
-                        component = null;
-                        for (RemoteHostTaskDummy dummy : thisIsYourSerializationNow)
-                        {
-                            //System.out.println("COMPARE " + dummy.taskId + " TO " + components.get(0));
-                            if (dummy.taskId == Integer.parseInt(components.get(0)))
-                            {
-                                componentAlreadyExists = true;
-                                component = dummy;
-                                break;
-                            }
-                        }
-                        if (componentAlreadyExists)
-                        {
-                            thisIsYourSerializationNow.set(thisIsYourSerializationNow.indexOf(component), new RemoteHostTaskDummy(components, talksWith));
-                        }
-                        else
-                        {
-                            thisIsYourSerializationNow.add(new RemoteHostTaskDummy(components, talksWith));
-                        }
-                        //System.out.println("AFTER SERIALIZATION " + thisIsYourSerializationNow);
-                        for (RemoteHostTaskDummy dummy : thisIsYourSerializationNow)
-                        {
-                            //System.out.println("SERIALIZATION " + dummy.getArray());
-                        }
-                        break;
-                     */
-                    /*
-                    case "RESPONSE_GET_ALL_TASKS":
-                        rawArray = responseList.get(responsesListIndex);
-                        responsesListIndex++;
-                        rawArray = rawArray.replace("[", "");
-                        rawArray = rawArray.replace("]", "");
-                        String[] rawArraySplit = rawArray.split(", ");
-                        //System.out.println(Arrays.toString(rawArraySplit));
-                        int counter = 0;
-                        ArrayList<String> rawArrayTemp = new ArrayList<>();
-                        for (int i=0; i<rawArraySplit.length; i++)
-                        {
-                            //System.out.println(rawArraySplit[i%4]);
-                            rawArrayTemp.add(rawArraySplit[i]);
-                            //System.out.println(counter + "\t" + rawArraySplit[i%4]);
-                            // search for if given task was already read, if yes, then update it, if no then add it
-                            counter++;
-                            if (counter == 6)
-                            {
-                                componentAlreadyExists = false;
-                                component = null;
-                                //System.out.println(rawArrayTemp);
-                                for (RemoteHostTaskDummy dummy : thisIsYourSerializationNow)
-                                {
-                                    //System.out.println("COMPARE " + dummy.taskId + " TO " + rawArrayTemp.get(0));
-                                    if (dummy.taskId == Integer.parseInt(rawArrayTemp.get(0)))
-                                    {
-                                        componentAlreadyExists = true;
-                                        component = dummy;
-                                        break;
-                                    }
-                                }
-                                if (componentAlreadyExists)
-                                {
-                                    thisIsYourSerializationNow.set(thisIsYourSerializationNow.indexOf(component), new RemoteHostTaskDummy(rawArrayTemp, talksWith));
-                                }
-                                else
-                                {
-                                    thisIsYourSerializationNow.add(new RemoteHostTaskDummy(rawArrayTemp, talksWith));
-                                }
-                                counter = 0;
-                                //System.out.println("RAW ARRAY TEMP " + rawArrayTemp);
-                                rawArrayTemp = new ArrayList<>();
-
-                                for (RemoteHostTaskDummy dummy : thisIsYourSerializationNow)
-                                {
-                                    //System.out.print("OFPDOPFG{FGOP{" + dummy.getArray());
-                                }
-                            }
-
-                        }
-                        break;
-                     */
                     case "RECEIVE_FILES":
                         ResultSet filesSetRcv = database.searchDatabase("SELECT `id`, `owner_id`, `name`, `description`, `duration`, `size`, `format`, `type`, `date_added`\n" +
                                 "FROM `file` INNER JOIN `file_sharing`\n" +
@@ -638,6 +493,7 @@ public class ServerComThread implements Callable<String> {
                         }
                         break;
                     case "REGISTER_FILE":
+                        int fileAccountIdReg = Integer.parseInt(responseList.get(responsesListIndex++));
                         String fileNameReg = responseList.get(responsesListIndex++);
                         String fileDescReg = responseList.get(responsesListIndex++);
                         String fileDurReg = responseList.get(responsesListIndex++);
@@ -645,6 +501,14 @@ public class ServerComThread implements Callable<String> {
                         String fileFormReg = responseList.get(responsesListIndex++);
                         String fileTypeReg = responseList.get(responsesListIndex++);
                         String fileDateReg = responseList.get(responsesListIndex++);
+                        System.out.println("fileAccountIdReg: " + fileAccountIdReg);
+                        System.out.println("fileNameReg: " + fileNameReg);
+                        System.out.println("fileDescReg: " + fileDescReg);
+                        System.out.println("fileDurReg: " + fileDurReg);
+                        System.out.println("fileSizeReg: " + fileSizeReg);
+                        System.out.println("fileFormReg: " + fileFormReg);
+                        System.out.println("fileTypeReg: " + fileTypeReg);
+                        System.out.println("fileDateReg: " + fileDateReg);
 
                         String command = responseList.get(responsesListIndex++);
                         if (command.equals("SENDING_FILE_DATA"))
@@ -652,9 +516,9 @@ public class ServerComThread implements Callable<String> {
                             String downloadName = responseList.get(responsesListIndex++);
                             int downloadSize = Integer.parseInt(responseList.get(responsesListIndex++));
 
-                            System.out.println("fileName: " + downloadName);
-                            System.out.println("fileLen: " + downloadSize);
-                            System.out.println("test 0");
+                            System.out.println("Receiving file: " + downloadName);
+                            //System.out.println("fileLen: " + downloadSize);
+                            //System.out.println("test 0");
                             String bufferString = responseList.get(responsesListIndex++);
                             String[] convString = bufferString.substring(1, bufferString.length()-1).split(",");
                             lastFileData = new byte[convString.length];
@@ -662,9 +526,9 @@ public class ServerComThread implements Callable<String> {
                             {
                                 lastFileData[i] = Byte.parseByte(convString[i].trim());
                             }
-                            System.out.println("test 1");
-                            System.out.println(lastFileData.length);
-                            System.out.println("test 2");
+                            //System.out.println("test 1");
+                            //System.out.println(lastFileData.length);
+                            //System.out.println("test 2");
                         }
                         else
                         {
@@ -677,13 +541,13 @@ public class ServerComThread implements Callable<String> {
                         if (fileDateReg.equalsIgnoreCase("null"))
                         {
                             if (database.execUpdate("INSERT INTO `file`(`owner_id`, `name`, `description`, `path`, `duration`, `size`, `format`, `type`)\n" +
-                                    "VALUES (" + accountId + ", \"" + fileNameReg + "\", \"" + fileDescReg + "\", \"" + fileNameReg + "\", \"" + fileDurReg + "\", " + fileSizeReg + ", \"" + fileFormReg + "\", \"" + fileTypeReg + "\");") != -1)
+                                    "VALUES (" + fileAccountIdReg + ", \"" + fileNameReg + "\", \"" + fileDescReg + "\", \"" + fileNameReg + "\", \"" + fileDurReg + "\", " + fileSizeReg + ", \"" + fileFormReg + "\", \"" + fileTypeReg + "\");") != -1)
                             {
                                 writeFileData(fileNameReg + "." + fileFormReg);
                                 sendMsg.println("REGISTER_FILE_CORRECT");
                                 ResultSet fileRegSet = database.searchDatabase("SELECT `id`\n" +
                                         "FROM `file`\n" +
-                                        "WHERE `owner_id` = " + accountId + "\n" +
+                                        "WHERE `owner_id` = " + fileAccountIdReg + "\n" +
                                         "AND `name` = \"" + fileNameReg + "\";");
                                 fileRegSet.next();
                                 sendMsg.println(fileRegSet.getInt("id"));
@@ -696,12 +560,12 @@ public class ServerComThread implements Callable<String> {
                         else
                         {
                             if (database.execUpdate("INSERT INTO `file`(`owner_id`, `name`, `description`, `path`, `duration`, `size`, `format`, `type`, `date_added`)\n" +
-                                    "VALUES (" + accountId + ", \"" + fileNameReg + "\", \"" + fileDescReg + "\", \"" + filePathReg + "\", \"" + fileDurReg + "\", " + fileSizeReg + ", \"" + fileFormReg + "\", \"" + fileTypeReg + "\", \"" + fileDateReg + "\");") != -1)
+                                    "VALUES (" + fileAccountIdReg + ", \"" + fileNameReg + "\", \"" + fileDescReg + "\", \"" + filePathReg + "\", \"" + fileDurReg + "\", " + fileSizeReg + ", \"" + fileFormReg + "\", \"" + fileTypeReg + "\", \"" + fileDateReg + "\");") != -1)
                             {
                                 sendMsg.println("REGISTER_FILE_CORRECT");
                                 ResultSet fileRegSet = database.searchDatabase("SELECT `id`\n" +
                                         "FROM `file`\n" +
-                                        "WHERE `owner_id` = " + accountId + "\n" +
+                                        "WHERE `owner_id` = " + fileAccountIdReg + "\n" +
                                         "AND `name` = \"" + fileNameReg + "\";");
                                 fileRegSet.next();
                                 sendMsg.println(fileRegSet.getInt("id"));
@@ -1247,60 +1111,6 @@ public class ServerComThread implements Callable<String> {
         System.out.println("COMTHREADEND");
         assumeDead = true;
         return null;
-    }
-}
-
-/**
- * The things I do to avoid serialization. "Why?" you might be asking? If I knew "why" then I wouldn't be doing this. It's broken and that's all I can tell you.
- * This abomination holds all the data about a task that the server cares about putting into the database
- */
-class RemoteHostTaskDummy
-{
-    /**
-     * Internal values that will be put into the database
-     */
-    public int hostId, taskId, priority;
-    /**
-     * Internal values that will be put into the database
-     */
-    public String status, result;
-    /**
-     * Internal values that will be put into the database
-     */
-    public long serverTimeTaken, clientTimeTaken;
-
-    /**
-     * Constructor for this class that exists as Serialization pre-alpha version. IDK what I'm even saying anymore, just end this misery already
-     * @param components ArrayList of String with values to be put into the database, in order: taskId, priority, status, result
-     * @param hostId ID of the host that the values come from
-     */
-    public RemoteHostTaskDummy(ArrayList<String> components, int hostId)
-    {
-        this.hostId = hostId;
-        this.taskId = Integer.parseInt(components.get(0));
-        this.priority = Integer.parseInt(components.get(1));
-        this.status = components.get(2);
-        this.result = components.get(3);
-        this.serverTimeTaken = Long.parseLong(components.get(4));
-        this.clientTimeTaken = Long.parseLong(components.get(5));
-    }
-
-    /**
-     * Returns all the internal values as an ArrayList
-     * @return ArrayList of String containing all the internal values, in order: hostId, taskId, priority, status, result
-     */
-    public ArrayList<String> getArray()
-    {
-        ArrayList<String> components = new ArrayList<>();
-        components.add(String.valueOf(hostId));
-        components.add(String.valueOf(taskId));
-        components.add(String.valueOf(priority));
-        components.add(status);
-        components.add(result);
-        components.add(String.valueOf(serverTimeTaken));
-        components.add(String.valueOf(clientTimeTaken));
-
-        return components;
     }
 }
 
