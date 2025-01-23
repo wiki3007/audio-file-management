@@ -193,7 +193,6 @@ public class ServerComThread implements Callable<String> {
             return true;
         }
         return false;
-        return false;
     }
 
     /**
@@ -529,10 +528,10 @@ public class ServerComThread implements Callable<String> {
                         String passwordLog = responseList.get(responsesListIndex++);
                         if (loginLog.equalsIgnoreCase("guest"))
                         {
+                            accountId = -1;
                             sendMsg.println("LOGIN_CORRECT");
                             sendMsg.println("-1");
                             sendMsg.println("guest");
-                            accountId = -1;
                             break;
                         }
                         System.out.println("login: " + loginLog);
@@ -631,6 +630,7 @@ public class ServerComThread implements Callable<String> {
                                         "VALUES (" + regListSet.getInt("id") + ", " + Integer.parseInt(responseList.get(responsesListIndex++)) + ");");
                             }
                             sendMsg.println("REGISTER_LIST_CORRECT");
+                            sendMsg.println(regListSet.getInt("id"));
                         }
                         else
                         {

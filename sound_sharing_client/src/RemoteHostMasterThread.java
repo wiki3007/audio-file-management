@@ -38,14 +38,6 @@ public class RemoteHostMasterThread implements Callable<String> {
      */
     PrintWriter sendMsg;
     /**
-     * Dedicated reader to receive the raw sound file data
-     */
-    DataInputStream soundFileSendOverReader;
-    /**
-     * Dedicated writer to send the raw sound file data
-     */
-    DataOutputStream soundFileSendOverWriter;
-    /**
      * List of commands received from main server
      */
     ArrayList<String> commandsList = new ArrayList<>();
@@ -81,8 +73,6 @@ public class RemoteHostMasterThread implements Callable<String> {
         receiveMsg = new BufferedReader(new InputStreamReader(socket.getInputStream()));
         sendMsg = new PrintWriter(socket.getOutputStream(), true);
 
-        soundFileSendOverReader = new DataInputStream(socket.getInputStream());
-        soundFileSendOverWriter = new DataOutputStream(socket.getOutputStream());
         System.out.println("test");
         while (sessionId == -1) // must get the ID before proceeding
         {
@@ -96,14 +86,13 @@ public class RemoteHostMasterThread implements Callable<String> {
                 // just try again lmao
             }
         }
-
+        //socket.setSoTimeout(60000);
     }
 
     /**
      * Exchanges commands
-     * @throws InterruptedException If thread interrupted while exchanging
      */
-    private void readCommands() throws InterruptedException, IOException {
+    private void readCommands() throws IOException {
         String command = "";
         try
         {
@@ -116,8 +105,22 @@ public class RemoteHostMasterThread implements Callable<String> {
         catch (SocketTimeoutException waitTooLong)
         {
             // means no more messages to read, so just go on with your life
-            //System.out.println(waitTooLong);
+            System.out.println(waitTooLong);
         }
+    }
+
+    private String readMsg()
+    {
+        String command = "";
+        try
+        {
+            command = receiveMsg.readLine();
+        }
+        catch (IOException waitTooLong)
+        {
+            System.out.println(waitTooLong);
+        }
+        return command;
     }
 
     /**
@@ -190,75 +193,48 @@ public class RemoteHostMasterThread implements Callable<String> {
     /**
      * Receives all applicable files from the server and puts them in listOfFiles array, or updates if already exists
      */
-    void receiveFiles()
-    {
+    void receiveFiles(){
         if (account.getType().equals("guest")) sendMsg.println("RECEIVE_FILES_PUBLIC");
         else sendMsg.println("RECEIVE_FILES");
 
-        do
+        int amount = Integer.parseInt(readMsg());
+        for (int i=0; i<amount; i++)
         {
-            try
+            SoundFile temp = createFileFromCommandsList();
+            boolean fileFound = false;
+            for (int j = 0; j< listOfSoundFiles.size(); j++)
             {
-                readCommands();
-            }
-            catch (IOException | InterruptedException socketError)
-            {
-                System.out.println("Can't communicate with server, please restart connection or contact system administrator if error persists");
-                return;
-            }
-
-            int amount = Integer.parseInt(commandsList.get(commandsListIndex++));
-            for (int i=0; i<amount; i++)
-            {
-                SoundFile temp = createFileFromCommandsList();
-                boolean fileFound = false;
-                for (int j = 0; j< listOfSoundFiles.size(); j++)
+                if (listOfSoundFiles.get(j).getId() == temp.getId())
                 {
-                    if (listOfSoundFiles.get(j).getId() == temp.getId())
-                    {
-                        fileFound = true;
-                        listOfSoundFiles.set(j, temp);
-                        break;
-                    }
+                    fileFound = true;
+                    listOfSoundFiles.set(j, temp);
+                    break;
                 }
-
-                if (!fileFound) listOfSoundFiles.add(temp);
             }
-
-        } while (commandsListIndex < commandsList.size());
+            if (!fileFound) listOfSoundFiles.add(temp);
+        }
     }
 
     /**
      * Receives all applicable lists from the server and puts them in listOfLists array, or updates if already exist
      */
-    void receiveLists()
-    {
+    void receiveLists(){
         if (account.getType().equals("guest")) sendMsg.println("RECEIVE_LISTS_PUBLIC");
         sendMsg.println("RECEIVE_LISTS");
 
         do
         {
-            try
-            {
-                readCommands();
-            }
-            catch (IOException | InterruptedException socketError)
-            {
-                System.out.println("Can't communicate with server, please restart connection or contact system administrator if error persists");
-                return;
-            }
-
-            int listAmount = Integer.parseInt(commandsList.get(commandsListIndex++));
+            int listAmount = Integer.parseInt(readMsg());
             for (int i=0; i<listAmount; i++)
             {
-                int listId = Integer.parseInt(commandsList.get(commandsListIndex++));
-                int listOwnerId = Integer.parseInt(commandsList.get(commandsListIndex++));
-                String listName = commandsList.get(commandsListIndex++);
-                String listDescription = commandsList.get(commandsListIndex++);
-                String listType = commandsList.get(commandsListIndex++);
+                int listId = Integer.parseInt(readMsg());
+                int listOwnerId = Integer.parseInt(readMsg());
+                String listName = readMsg();
+                String listDescription = readMsg();
+                String listType = readMsg();
                 SoundList soundListTemp = new SoundList(listId, listOwnerId, listName, listDescription, listType);
 
-                int fileAmount = Integer.parseInt(commandsList.get(commandsListIndex++));
+                int fileAmount = Integer.parseInt(readMsg());
                 ArrayList<SoundFile> tempSoundFiles = new ArrayList<>();
                 for (int j=0; j<fileAmount; j++)
                 {
@@ -468,8 +444,8 @@ public class RemoteHostMasterThread implements Callable<String> {
      * Reads the commandList buffer to create a File object
      * @return File class object
      */
-    SoundFile createFileFromCommandsList()
-    {
+    SoundFile createFileFromCommandsList(){
+        /*
         int id = Integer.parseInt(commandsList.get(commandsListIndex++));
         int owner_id = Integer.parseInt(commandsList.get(commandsListIndex++));
         String name = commandsList.get(commandsListIndex++);
@@ -479,6 +455,16 @@ public class RemoteHostMasterThread implements Callable<String> {
         String format = commandsList.get(commandsListIndex++);
         String type = commandsList.get(commandsListIndex++);
         String date_added = commandsList.get(commandsListIndex++);
+         */
+        int id = Integer.parseInt(readMsg());
+        int owner_id = Integer.parseInt(readMsg());
+        String name = readMsg();
+        String description = readMsg();
+        String duration = readMsg();
+        int size = Integer.parseInt(readMsg());
+        String format = readMsg();
+        String type = readMsg();
+        String date_added = readMsg();
         return new SoundFile(id, owner_id, name, description, duration, size, format, type, date_added);
     }
 
@@ -491,8 +477,7 @@ public class RemoteHostMasterThread implements Callable<String> {
      *  If password is incorrect for given login, reask for password.
      * @return false if communication error with server, true if account properly assigned
      */
-    boolean loginProcedureManual()
-    {
+    boolean loginProcedureManual(){
         Scanner in = new Scanner(System.in);
         System.out.print("Login: ");
         String login = in.next();
@@ -509,50 +494,38 @@ public class RemoteHostMasterThread implements Callable<String> {
 
         do
         {
-            try
+            String confirmation = readMsg();
+            if (confirmation.equals("LOGIN_CORRECT"))
             {
-                readCommands();
+                int loginId = Integer.parseInt(readMsg());
+                String loginType = readMsg();
+                account = new Account(loginId, login, loginType);
+                break;
             }
-            catch (IOException | InterruptedException socketError)
+            else if (confirmation.equals("PASSWORD_ERROR"))
             {
-                System.out.println("Can't communicate with server, please restart connection or contact system administrator if error persists");
-                return false;
+                System.out.println("Password: ");
+                password = in.next();
+                commandsListIndex = commandsList.size();
+                sendMsg.println("LOGIN_REQUEST");
+                sendMsg.println(login);
+                sendMsg.println(password);
             }
-            while (commandsListIndex < commandsList.size())
+            else if (confirmation.equals("LOGIN_ERROR"))
             {
-                String confirmation = commandsList.get(commandsListIndex++);
-                if (confirmation.equals("LOGIN_CORRECT"))
-                {
-                    int loginId = Integer.parseInt(commandsList.get(commandsListIndex++));
-                    String loginType = commandsList.get(commandsListIndex++);
-                    account = new Account(loginId, login, loginType);
-                    break;
-                }
-                else if (confirmation.equals("PASSWORD_ERROR"))
+                System.out.println("Login: ");
+                login = in.next();
+                password = "guest";
+                if (!login.equalsIgnoreCase("guest"))
                 {
                     System.out.println("Password: ");
                     password = in.next();
-                    commandsListIndex = commandsList.size();
-                    sendMsg.println("LOGIN_REQUEST");
-                    sendMsg.println(login);
-                    sendMsg.println(password);
                 }
-                else if (confirmation.equals("LOGIN_ERROR"))
-                {
-                    System.out.println("Login: ");
-                    login = in.next();
-                    password = "guest";
-                    if (!login.equalsIgnoreCase("guest"))
-                    {
-                        System.out.println("Password: ");
-                        password = in.next();
-                    }
-                    commandsListIndex = commandsList.size();
-                    sendMsg.println("LOGIN_REQUEST");
-                    sendMsg.println(login);
-                    sendMsg.println(password);
+                commandsListIndex = commandsList.size();
+                sendMsg.println("LOGIN_REQUEST");
+                sendMsg.println(login);
+                sendMsg.println(password);
                 }
-            }
         } while(account == null);
 
         return true;
@@ -569,41 +542,28 @@ public class RemoteHostMasterThread implements Callable<String> {
      * @param password Password of said account
      * @return false if communication error with server or unsuccessful log in, true if account properly assigned
      */
-    boolean loginProcedureArg(String login, String password)
-    {
+    boolean loginProcedureArg(String login, String password){
         sendMsg.println("LOGIN_REQUEST");
         sendMsg.println(login);
         sendMsg.println(password);
         do
         {
-            try
+            String confirmation = readMsg();
+            System.out.println(confirmation);
+            if (confirmation.equals("LOGIN_CORRECT"))
             {
-                readCommands();
+                int loginId = Integer.parseInt(readMsg());
+                String loginType = readMsg();
+                account = new Account(loginId, login, loginType);
+                return true;
             }
-            catch (IOException | InterruptedException socketError)
+            else if (confirmation.equals("PASSWORD_ERROR"))
             {
-                System.out.println("Can't communicate with server, please restart connection or contact system administrator if error persists");
                 return false;
             }
-            while (commandsListIndex < commandsList.size())
+            else if (confirmation.equals("LOGIN_ERROR"))
             {
-                String confirmation = commandsList.get(commandsListIndex++);
-                System.out.println(confirmation);
-                if (confirmation.equals("LOGIN_CORRECT"))
-                {
-                    int loginId = Integer.parseInt(commandsList.get(commandsListIndex++));
-                    String loginType = commandsList.get(commandsListIndex++);
-                    account = new Account(loginId, login, loginType);
-                    return true;
-                }
-                else if (confirmation.equals("PASSWORD_ERROR"))
-                {
-                    return false;
-                }
-                else if (confirmation.equals("LOGIN_ERROR"))
-                {
-                    return false;
-                }
+                return false;
             }
         } while (account == null);
 
@@ -618,8 +578,7 @@ public class RemoteHostMasterThread implements Callable<String> {
      *  If login exists, then asks reask and resend both login and password.
      * @return false if communication error with server, true if account properly assigned
      */
-    boolean registerProcedureManual()
-    {
+    boolean registerProcedureManual(){
         Scanner in = new Scanner(System.in);
         String login, password;
         do
@@ -640,34 +599,22 @@ public class RemoteHostMasterThread implements Callable<String> {
 
         do
         {
-            try
+            String confirmation = readMsg();
+            if (confirmation.equals("REGISTER_CORRECT"))
             {
-                readCommands();
+                int loginId = Integer.parseInt(readMsg());
+                String loginType = readMsg();
+                account = new Account(loginId, login, loginType);
+                break;
             }
-            catch (IOException | InterruptedException socketError)
+            else if (confirmation.equals("REGISTER_ERROR"))
             {
-                System.out.println("Can't communicate with server, please restart connection or contact system administrator if error persists");
-                return false;
-            }
-            while (commandsListIndex < commandsList.size())
-            {
-                String confirmation = commandsList.get(commandsListIndex++);
-                if (confirmation.equals("REGISTER_CORRECT"))
-                {
-                    int loginId = Integer.parseInt(commandsList.get(commandsListIndex++));
-                    String loginType = commandsList.get(commandsListIndex++);
-                    account = new Account(loginId, login, loginType);
-                    break;
-                }
-                else if (confirmation.equals("REGISTER_ERROR"))
-                {
-                    System.out.println("Password: ");
-                    password = in.next();
-                    commandsListIndex = commandsList.size();
-                    sendMsg.println("REGISTER_REQUEST");
-                    sendMsg.println(login);
-                    sendMsg.println(password);
-                }
+                System.out.println("Password: ");
+                password = in.next();
+                commandsListIndex = commandsList.size();
+                sendMsg.println("REGISTER_REQUEST");
+                sendMsg.println(login);
+                sendMsg.println(password);
             }
         } while(account == null);
 
@@ -682,36 +629,23 @@ public class RemoteHostMasterThread implements Callable<String> {
      *  If login exists, then asks reask and resend both login and password.
      * @return false if communication error with server, true if account properly assigned
      */
-    boolean registerProcedureArgs(String login, String password)
-    {
+    boolean registerProcedureArgs(String login, String password){
         sendMsg.println("REGISTER_REQUEST");
         sendMsg.println(login);
         sendMsg.println(password);
         do
         {
-            try
+            String confirmation = readMsg();
+            if (confirmation.equals("REGISTER_CORRECT"))
             {
-                readCommands();
+                int loginId = Integer.parseInt(readMsg());
+                String loginType = readMsg();
+                account = new Account(loginId, login, loginType);
+                return true;
             }
-            catch (IOException | InterruptedException socketError)
+            else if (confirmation.equals("REGISTER_ERROR"))
             {
-                System.out.println("Can't communicate with server, please restart connection or contact system administrator if error persists");
                 return false;
-            }
-            while (commandsListIndex < commandsList.size())
-            {
-                String confirmation = commandsList.get(commandsListIndex++);
-                if (confirmation.equals("REGISTER_CORRECT"))
-                {
-                    int loginId = Integer.parseInt(commandsList.get(commandsListIndex++));
-                    String loginType = commandsList.get(commandsListIndex++);
-                    account = new Account(loginId, login, loginType);
-                    return true;
-                }
-                else if (confirmation.equals("REGISTER_ERROR"))
-                {
-                    return false;
-                }
             }
         } while(account == null);
 
@@ -740,7 +674,7 @@ public class RemoteHostMasterThread implements Callable<String> {
      * @throws IOException if error communicationg with server
      * @throws InterruptedException idk
      */
-    SoundList addList(String name, String description, String type, ArrayList<SoundFile> soundFiles) throws IOException, InterruptedException {
+    SoundList addList(String name, String description, String type, ArrayList<SoundFile> soundFiles){
         if (account.getType().equals("guest"))
         {
             System.out.println("PERMISSION DENIED");
@@ -754,31 +688,14 @@ public class RemoteHostMasterThread implements Callable<String> {
         sendMsg.println(soundFiles.size());
         for (int i = 0; i< soundFiles.size(); i++)
         {
-            /*
-            ArrayList<String> elements = soundFiles.get(i).getArrayOfElements();
-            for (int j=0; j<elements.size(); j++)
-            {
-                sendMsg.println(elements.get(i));
-            }
-             */
             sendMsg.println(soundFiles.get(i).getId());
         }
 
         SoundList soundList = null;
-        try
-        {
-            readCommands();
-        }
-        catch (IOException socketError)
-        {
-            System.out.println("Can't communicate with server, please restart connection or contact system administrator if error persists");
-            return null;
-        }
-
-        String command = commandsList.get(commandsListIndex++);
+        String command = readMsg();
         if (command.equals("REGISTER_LIST_CORRECT"))
         {
-            int listId = Integer.parseInt(commandsList.get(commandsListIndex++));
+            int listId = Integer.parseInt(readMsg());
             soundList = new SoundList(listId, account.getId(), name, description, type);
             soundList.setFiles(soundFiles);
             listOfSoundLists.add(soundList);
@@ -843,20 +760,10 @@ public class RemoteHostMasterThread implements Callable<String> {
         sendMsg.println(date_added);
         sendFileData(path);
 
-        try
-        {
-            readCommands();
-        }
-        catch (IOException | InterruptedException socketError)
-        {
-            System.out.println("Can't communicate with server, please restart connection or contact system administrator if error persists");
-            return null;
-        }
-
-        String command = commandsList.get(commandsListIndex++);
+        String command = readMsg();
         if (command.equals("REGISTER_FILE_CORRECT"))
         {
-            int fileId = Integer.parseInt(commandsList.get(commandsListIndex++));
+            int fileId = Integer.parseInt(readMsg());
             SoundFile soundFile = new SoundFile(fileId, account.getId(), name, description, duration, size, format, type, date_added);
             listOfSoundFiles.add(soundFile);
             return soundFile;
@@ -869,8 +776,7 @@ public class RemoteHostMasterThread implements Callable<String> {
      * @param soundFile File to delete
      * @return true if file successfully deleted, false if not
      */
-    boolean deleteFile (SoundFile soundFile)
-    {
+    boolean deleteFile (SoundFile soundFile){
         if (account.getType().equals("guest"))
         {
             System.out.println("PERMISSION DENIED");
@@ -881,17 +787,7 @@ public class RemoteHostMasterThread implements Callable<String> {
         sendMsg.println("FILE_DELETE");
         sendMsg.println(soundFile.getId());
 
-        try
-        {
-            readCommands();
-        }
-        catch (IOException | InterruptedException socketError)
-        {
-            System.out.println("Can't communicate with server, please restart connection or contact system administrator if error persists");
-            return false;
-        }
-
-        String command = commandsList.get(commandsListIndex++);
+        String command = readMsg();
         if (command.equals("FILE_DELETE_APPROVED"))
         {
             for (SoundList soundList : listOfSoundLists)
@@ -933,8 +829,7 @@ public class RemoteHostMasterThread implements Callable<String> {
      * @param soundList List to delete
      * @return True if server approved delete and user deleted, False otherwise
      */
-    boolean deleteList(SoundList soundList)
-    {
+    boolean deleteList(SoundList soundList){
         if (account.getType().equals("guest"))
         {
             System.out.println("PERMISSION DENIED");
@@ -945,17 +840,7 @@ public class RemoteHostMasterThread implements Callable<String> {
         sendMsg.println("LIST_DELETE");
         sendMsg.println(soundList.getId());
 
-        try
-        {
-            readCommands();
-        }
-        catch (IOException | InterruptedException socketError)
-        {
-            System.out.println("Can't communicate with server, please restart connection or contact system administrator if error persists");
-            return false;
-        }
-
-        String command = commandsList.get(commandsListIndex++);
+        String command = readMsg();
         if (command.equals("LIST_DELETE_APPROVED"))
         {
             listOfSoundLists.remove(soundList);
@@ -971,8 +856,7 @@ public class RemoteHostMasterThread implements Callable<String> {
      * @param soundFile File to add to list
      * @return True if server agrees, false otherwise
      */
-    boolean addFileToList(SoundList soundList, SoundFile soundFile)
-    {
+    boolean addFileToList(SoundList soundList, SoundFile soundFile){
         if (account.getType().equals("guest"))
         {
             System.out.println("PERMISSION DENIED");
@@ -985,17 +869,7 @@ public class RemoteHostMasterThread implements Callable<String> {
         sendMsg.println(soundList.getId());
         sendMsg.println(soundFile.getId());
 
-        try
-        {
-            readCommands();
-        }
-        catch (IOException | InterruptedException socketError)
-        {
-            System.out.println("Can't communicate with server, please restart connection or contact system administrator if error persists");
-            return false;
-        }
-
-        String command = commandsList.get(commandsListIndex++);
+        String command = readMsg();
         if (command.equals("ADD_FILE_TO_LIST_APPROVED"))
         {
             return true;
@@ -1009,8 +883,7 @@ public class RemoteHostMasterThread implements Callable<String> {
      * @param soundFile File to remove to list
      * @return True if server agrees, false otherwise
      */
-    boolean removeFileFromList(SoundList soundList, SoundFile soundFile)
-    {
+    boolean removeFileFromList(SoundList soundList, SoundFile soundFile){
         if (account.getType().equals("guest"))
         {
             System.out.println("PERMISSION DENIED");
@@ -1023,17 +896,7 @@ public class RemoteHostMasterThread implements Callable<String> {
         sendMsg.println(soundList.getId());
         sendMsg.println(soundFile.getId());
 
-        try
-        {
-            readCommands();
-        }
-        catch (IOException | InterruptedException socketError)
-        {
-            System.out.println("Can't communicate with server, please restart connection or contact system administrator if error persists");
-            return false;
-        }
-
-        String command = commandsList.get(commandsListIndex++);
+        String command = readMsg();
         if (command.equals("REMOVE_FILE_FROM_LIST_APPROVED"))
         {
             return true;
@@ -1047,8 +910,7 @@ public class RemoteHostMasterThread implements Callable<String> {
      * @param who ID of user to unshare
      * @return True if server agrees, false otherwise
      */
-    boolean unshareFileFromUser(SoundFile soundFile, int who)
-    {
+    boolean unshareFileFromUser(SoundFile soundFile, int who){
         if (account.getType().equals("guest"))
         {
             System.out.println("PERMISSION DENIED");
@@ -1060,17 +922,7 @@ public class RemoteHostMasterThread implements Callable<String> {
         sendMsg.println(soundFile.getId());
         sendMsg.println(who);
 
-        try
-        {
-            readCommands();
-        }
-        catch (IOException | InterruptedException socketError)
-        {
-            System.out.println("Can't communicate with server, please restart connection or contact system administrator if error persists");
-            return false;
-        }
-
-        String command = commandsList.get(commandsListIndex++);
+        String command = readMsg();
         if (command.equals("FILE_UNSHARE_APPROVED"))
         {
             return true;
@@ -1078,8 +930,7 @@ public class RemoteHostMasterThread implements Callable<String> {
         else return false;
     }
 
-    boolean unshareFileFromAll(SoundFile soundFile)
-    {
+    boolean unshareFileFromAll(SoundFile soundFile){
         if (account.getType().equals("guest"))
         {
             System.out.println("PERMISSION DENIED");
@@ -1090,17 +941,7 @@ public class RemoteHostMasterThread implements Callable<String> {
         sendMsg.println("FILE_UNSHARE_ALL_REQUEST");
         sendMsg.println(soundFile.getId());
 
-        try
-        {
-            readCommands();
-        }
-        catch (IOException | InterruptedException socketError)
-        {
-            System.out.println("Can't communicate with server, please restart connection or contact system administrator if error persists");
-            return false;
-        }
-
-        String command = commandsList.get(commandsListIndex++);
+        String command = readMsg();
         if (command.equals("FILE_UNSHARE_ALL_APPROVED"))
         {
             return true;
@@ -1160,17 +1001,7 @@ public class RemoteHostMasterThread implements Callable<String> {
         sendMsg.println(date_added);
         sendFileData(path);
 
-        try
-        {
-            readCommands();
-        }
-        catch (IOException | InterruptedException socketError)
-        {
-            System.out.println("Can't communicate with server, please restart connection or contact system administrator if error persists");
-            return null;
-        }
-
-        String command = commandsList.get(commandsListIndex++);
+        String command = readMsg();
         if (command.equals("REGISTER_FILE_CORRECT"))
         {
             int fileId = Integer.parseInt(commandsList.get(commandsListIndex++));
@@ -1186,8 +1017,7 @@ public class RemoteHostMasterThread implements Callable<String> {
      * @param userId ID of user to serach
      * @return ArrayList of File class objects belonging to given user
      */
-    ArrayList<SoundFile> browseUserFiles(int userId)
-    {
+    ArrayList<SoundFile> browseUserFiles(int userId){
         if (!account.getType().equals("admin"))
         {
             System.out.println("PERMISSION DENIED");
@@ -1198,30 +1028,13 @@ public class RemoteHostMasterThread implements Callable<String> {
         sendMsg.println("BROWSE_FILES_REQUEST");
         sendMsg.println(userId);
 
-        do
+        int amount = Integer.parseInt(readMsg());
+        for (int i=0; i<amount; i++)
         {
-            try
-            {
-                readCommands();
-            }
-            catch (IOException | InterruptedException socketError)
-            {
-                System.out.println("Can't communicate with server, please restart connection or contact system administrator if error persists");
-                return null;
-            }
-
-            while (commandsListIndex < commandsList.size())
-            {
-                int amount = Integer.parseInt(commandsList.get(commandsListIndex++));
-
-                for (int i=0; i<amount; i++)
-                {
-                    SoundFile soundFile = createFileFromCommandsList();
-                    soundFiles.add(soundFile);
-                }
-            }
-            return soundFiles;
-        } while (true);
+            SoundFile soundFile = createFileFromCommandsList();
+            soundFiles.add(soundFile);
+        }
+        return soundFiles;
     }
 
     /**
@@ -1230,8 +1043,7 @@ public class RemoteHostMasterThread implements Callable<String> {
      * @param userId ID of user to delete the file from
      * @return True if server approved deletion, False otherwise
      */
-    boolean deleteUserFile(SoundFile soundFile, int userId)
-    {
+    boolean deleteUserFile(SoundFile soundFile, int userId){
         if (!account.getType().equals("admin"))
         {
             System.out.println("PERMISSION DENIED");
@@ -1243,17 +1055,7 @@ public class RemoteHostMasterThread implements Callable<String> {
         sendMsg.println(userId);
         sendMsg.println(soundFile.getId());
 
-        try
-        {
-            readCommands();
-        }
-        catch (IOException | InterruptedException socketError)
-        {
-            System.out.println("Can't communicate with server, please restart connection or contact system administrator if error persists");
-            return false;
-        }
-
-        String command = commandsList.get(commandsListIndex++);
+        String command = readMsg();
         if (command.equals("FILE_DELETE_USER_APPROVED"))
         {
             soundFile = null;
@@ -1271,7 +1073,7 @@ public class RemoteHostMasterThread implements Callable<String> {
      * @param soundFiles List of files to add to list
      * @return The newly added list or null if encountered error
      */
-    SoundList addListAsServer(String name, String description, ArrayList<SoundFile> soundFiles) throws IOException, InterruptedException
+    SoundList addListAsServer(String name, String description, ArrayList<SoundFile> soundFiles)
     {
         if (account.getType().equals("guest"))
         {
@@ -1286,31 +1088,15 @@ public class RemoteHostMasterThread implements Callable<String> {
         sendMsg.println(soundFiles.size());
         for (int i = 0; i< soundFiles.size(); i++)
         {
-            /*
-            ArrayList<String> elements = soundFiles.get(i).getArrayOfElements();
-            for (int j=0; j<elements.size(); j++)
-            {
-                sendMsg.println(elements.get(i));
-            }
-             */
             sendMsg.println(soundFiles.get(i).getId());
         }
 
         SoundList soundList = null;
-        try
-        {
-            readCommands();
-        }
-        catch (IOException socketError)
-        {
-            System.out.println("Can't communicate with server, please restart connection or contact system administrator if error persists");
-            return null;
-        }
 
-        String command = commandsList.get(commandsListIndex++);
+        String command = readMsg();
         if (command.equals("REGISTER_LIST_CORRECT"))
         {
-            int listId = Integer.parseInt(commandsList.get(commandsListIndex++));
+            int listId = Integer.parseInt(readMsg());
             soundList = new SoundList(listId, 0, name, description, "public");
             soundList.setFiles(soundFiles);
             listOfSoundLists.add(soundList);
@@ -1324,8 +1110,7 @@ public class RemoteHostMasterThread implements Callable<String> {
      * @param userId ID of user to serach
      * @return ArrayList of List class objects belonging to given user
      */
-    ArrayList<SoundList> browseUserLists(int userId)
-    {
+    ArrayList<SoundList> browseUserLists(int userId){
         if (!account.getType().equals("admin"))
         {
             System.out.println("PERMISSION DENIED");
@@ -1336,45 +1121,29 @@ public class RemoteHostMasterThread implements Callable<String> {
         sendMsg.println("BROWSE_LISTS_REQUEST");
         sendMsg.println(userId);
 
-        do
+
+        int listsAmount = Integer.parseInt(commandsList.get(commandsListIndex++));
+
+        for (int i=0; i<listsAmount; i++)
         {
-            try
+            int listId = Integer.parseInt(readMsg());
+            int listOwnerId = Integer.parseInt(readMsg());
+            String listName = readMsg();
+            String listDescription = readMsg();
+            String listType = readMsg();
+            SoundList soundListTemp = new SoundList(listId, listOwnerId, listName, listDescription, listType);
+
+            int fileAmount = Integer.parseInt(commandsList.get(commandsListIndex++));
+            ArrayList<SoundFile> tempSoundFiles = new ArrayList<>();
+            for (int j=0; j<fileAmount; j++)
             {
-                readCommands();
+                SoundFile temp = createFileFromCommandsList();
+                tempSoundFiles.add(temp);
             }
-            catch (IOException | InterruptedException socketError)
-            {
-                System.out.println("Can't communicate with server, please restart connection or contact system administrator if error persists");
-                return null;
-            }
-
-            while (commandsListIndex < commandsList.size())
-            {
-                int listsAmount = Integer.parseInt(commandsList.get(commandsListIndex++));
-
-
-                for (int i=0; i<listsAmount; i++)
-                {
-                    int listId = Integer.parseInt(commandsList.get(commandsListIndex++));
-                    int listOwnerId = Integer.parseInt(commandsList.get(commandsListIndex++));
-                    String listName = commandsList.get(commandsListIndex++);
-                    String listDescription = commandsList.get(commandsListIndex++);
-                    String listType = commandsList.get(commandsListIndex++);
-                    SoundList soundListTemp = new SoundList(listId, listOwnerId, listName, listDescription, listType);
-
-                    int fileAmount = Integer.parseInt(commandsList.get(commandsListIndex++));
-                    ArrayList<SoundFile> tempSoundFiles = new ArrayList<>();
-                    for (int j=0; j<fileAmount; j++)
-                    {
-                        SoundFile temp = createFileFromCommandsList();
-                        tempSoundFiles.add(temp);
-                    }
-                    soundListTemp.setFiles(tempSoundFiles);
-                    soundLists.add(soundListTemp);
-                }
-            }
-            return soundLists;
-        } while (true);
+            soundListTemp.setFiles(tempSoundFiles);
+            soundLists.add(soundListTemp);
+        }
+        return soundLists;
     }
 
     /**
@@ -1383,8 +1152,7 @@ public class RemoteHostMasterThread implements Callable<String> {
      * @param userId ID of user to delete the file from
      * @return True if server approved deletion, False otherwise
      */
-    boolean deleteUserList(SoundList soundList, int userId)
-    {
+    boolean deleteUserList(SoundList soundList, int userId){
         if (!account.getType().equals("admin"))
         {
             System.out.println("PERMISSION DENIED");
@@ -1396,17 +1164,7 @@ public class RemoteHostMasterThread implements Callable<String> {
         sendMsg.println(userId);
         sendMsg.println(soundList.getId());
 
-        try
-        {
-            readCommands();
-        }
-        catch (IOException | InterruptedException socketError)
-        {
-            System.out.println("Can't communicate with server, please restart connection or contact system administrator if error persists");
-            return false;
-        }
-
-        String command = commandsList.get(commandsListIndex++);
+        String command = readMsg();
         if (command.equals("LIST_DELETE_USER_APPROVED"))
         {
             soundList = null;
@@ -1429,30 +1187,9 @@ public class RemoteHostMasterThread implements Callable<String> {
         sendMsg.println("LISTEN_SOUND_REQUEST");
         sendMsg.println(soundFile.getId());
 
-        try
-        {
-            readCommands();
-        }
-        catch (IOException | InterruptedException socketError)
-        {
-            System.out.println("Can't communicate with server, please restart connection or contact system administrator if error persists");
-            return;
-        }
-
-        String command = commandsList.get(commandsListIndex++);
+        String command = readMsg();
         if (command.equals("LISTEN_SOUND_APPROVED"))
         {
-            try
-            {
-                readCommands();
-            }
-            catch (IOException | InterruptedException socketError)
-            {
-                System.out.println("Can't communicate with server, please restart connection or contact system administrator if error persists");
-                return;
-            }
-
-
             if (!download)
             {
                 String path = "./tmp/" + soundFile.getName() + "." + soundFile.getFormat();
@@ -1514,6 +1251,7 @@ public class RemoteHostMasterThread implements Callable<String> {
             //System.out.println("TEATTE");
 
             // read all pending commands
+            /*
             try
             {
                 readCommands();
@@ -1523,6 +1261,7 @@ public class RemoteHostMasterThread implements Callable<String> {
                 System.out.println("Can't communicate with server, please restart connection or contact system administrator if error persists");
                 return null;
             }
+            */
 
             //System.out.println("HOST AFTER READING COMMANDS (" + commandsListIndex + " / " + commandsList.size() + ")");
 
