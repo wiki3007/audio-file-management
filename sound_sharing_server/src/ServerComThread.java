@@ -4,6 +4,7 @@ import java.net.SocketTimeoutException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.concurrent.Callable;
 
 
@@ -81,6 +82,7 @@ public class ServerComThread implements Callable<String> {
     int testCounter = 0;
     ServerComThread(Socket socket, int id) throws IOException, SQLException {
         this.socket = socket;
+        socket.setSoTimeout(1000);
         this.talksWith = id;
         receiveMsg = new BufferedReader(new InputStreamReader(socket.getInputStream()));
         sendMsg = new PrintWriter(socket.getOutputStream(), true);
@@ -113,32 +115,19 @@ public class ServerComThread implements Callable<String> {
      * @throws InterruptedException If thread interrupted while exchanging
      */
     private void readResponses() throws InterruptedException, IOException {
+        String response = "";
         try
         {
-            String response = "";
             while (true) // keep reading until .readLine throws a timeout
             {
-
-                if (!response.equals("SENDING_FILE_DATA"))
-                {
-                    //System.out.println("test " + testCounter++);
-                    response = receiveMsg.readLine();
-                    responseList.add(response);
-                    //System.out.println("read " + response);
-                }
-                else
-                {
-                    response = receiveMsg.readLine();
-                    String name = response;
-                    response = receiveMsg.readLine(); // size;
-                    int fileSize = Integer.parseInt(response);
-                    lastFileData = soundFileSendOverReader.readNBytes(fileSize);
-                }
+                response = receiveMsg.readLine();
+                responseList.add(response);
             }
         }
         catch (SocketTimeoutException waitTooLong)
         {
             // means no more messages to read, so just go on with your life
+            //System.out.println(waitTooLong);
         }
     }
 
@@ -184,18 +173,26 @@ public class ServerComThread implements Callable<String> {
      * @throws IOException
      */
     boolean sendFileData(String path) throws IOException {
+        System.out.println("Begin sending file...");
         if (path.endsWith(".flac") || path.endsWith(".mp3") || path.endsWith(".ogg") || path.endsWith(".wav") || path.endsWith(".wma") || path.endsWith(".webm"))
         {
             File file = new File(path);
+            System.out.println("sendFile path: " + path);
             if (!file.exists()) return false;
             FileInputStream fileInputStream = new FileInputStream(file);
             sendMsg.println("SENDING_FILE_DATA");
             sendMsg.println(file.getName());
             sendMsg.println(file.length());
+
             byte[] buffer = fileInputStream.readNBytes((int) file.length());
-            soundFileSendOverWriter.write(buffer);
+            String bufferString = Arrays.toString(buffer);
+            sendMsg.println(bufferString);
+            System.out.println("sendFile len: " + file.length());
+            System.out.println("buffer size: " + buffer.length);
+            System.out.println("file test true");
             return true;
         }
+        return false;
         return false;
     }
 
@@ -335,7 +332,7 @@ public class ServerComThread implements Callable<String> {
             }
             catch (IOException io) // if trying to read from a closed socket
             {
-                System.out.println("Host ID " + talksWith + " socket reading error PING ACK " + pingDelay);
+                System.out.println("Host ID " + talksWith + " socket reading error PING ACK " + pingDelay++);
                 Thread.sleep(1000); // just so it emulates the normal time of 'operations'
             }
             //System.out.println("PING ACK " + pingDelay);
@@ -535,6 +532,7 @@ public class ServerComThread implements Callable<String> {
                             sendMsg.println("LOGIN_CORRECT");
                             sendMsg.println("-1");
                             sendMsg.println("guest");
+                            accountId = -1;
                             break;
                         }
                         System.out.println("login: " + loginLog);
@@ -542,13 +540,11 @@ public class ServerComThread implements Callable<String> {
                         ResultSet loginSetLog = database.searchDatabase("SELECT *\n" +
                                 "FROM `account`\n" +
                                 "WHERE `name` = \"" + loginLog + "\";");
-                        System.out.println("test 0");
                         if (!loginSetLog.next())
                         {
                             sendMsg.println("LOGIN_ERROR");
                             break;
                         }
-                        System.out.println("test 1");
                         if (!passwordLog.equals(loginSetLog.getString("password")))
                         {
                             sendMsg.println("PASSWORD_ERROR");
@@ -560,9 +556,9 @@ public class ServerComThread implements Callable<String> {
                             sendMsg.println(loginSetLog.getString("id"));
                             sendMsg.println(loginSetLog.getString("type"));
                             System.out.println("found id: " + loginSetLog.getString("id"));
+                            accountId = loginSetLog.getInt("id");
                             System.out.println("found type: " + loginSetLog.getString("type"));
                         }
-                        System.out.println("test 2");
                         break;
                     case "REGISTER_REQUEST":
                         String loginReg = responseList.get(responsesListIndex++);
@@ -650,12 +646,38 @@ public class ServerComThread implements Callable<String> {
                         String fileTypeReg = responseList.get(responsesListIndex++);
                         String fileDateReg = responseList.get(responsesListIndex++);
 
+                        String command = responseList.get(responsesListIndex++);
+                        if (command.equals("SENDING_FILE_DATA"))
+                        {
+                            String downloadName = responseList.get(responsesListIndex++);
+                            int downloadSize = Integer.parseInt(responseList.get(responsesListIndex++));
+
+                            System.out.println("fileName: " + downloadName);
+                            System.out.println("fileLen: " + downloadSize);
+                            System.out.println("test 0");
+                            String bufferString = responseList.get(responsesListIndex++);
+                            String[] convString = bufferString.substring(1, bufferString.length()-1).split(",");
+                            lastFileData = new byte[convString.length];
+                            for (int i=0; i<lastFileData.length; i++)
+                            {
+                                lastFileData[i] = Byte.parseByte(convString[i].trim());
+                            }
+                            System.out.println("test 1");
+                            System.out.println(lastFileData.length);
+                            System.out.println("test 2");
+                        }
+                        else
+                        {
+                            sendMsg.println("REGISTER_FILE_ERROR");
+                            break;
+                        }
+
                         String filePathReg = "./sound_files/" + fileNameReg + "." + fileFormReg;
-                        System.out.println("ok");
+                        //System.out.println("ok");
                         if (fileDateReg.equalsIgnoreCase("null"))
                         {
-                            if (database.execUpdate("INSERT INTO `file`(`owner_id`, `name`, `description`, `path`, `duration`, `size`, `format`, `type)\n" +
-                                    "VALUES (" + accountId + ", \"" + fileNameReg + "\", \"" + fileDescReg + "\", \"" + filePathReg + "\", \"" + fileDurReg + "\", " + fileSizeReg + ", \"" + fileFormReg + "\", \"" + fileTypeReg + "\");") != -1)
+                            if (database.execUpdate("INSERT INTO `file`(`owner_id`, `name`, `description`, `path`, `duration`, `size`, `format`, `type`)\n" +
+                                    "VALUES (" + accountId + ", \"" + fileNameReg + "\", \"" + fileDescReg + "\", \"" + fileNameReg + "\", \"" + fileDurReg + "\", " + fileSizeReg + ", \"" + fileFormReg + "\", \"" + fileTypeReg + "\");") != -1)
                             {
                                 writeFileData(fileNameReg + "." + fileFormReg);
                                 sendMsg.println("REGISTER_FILE_CORRECT");
@@ -1215,7 +1237,7 @@ public class ServerComThread implements Callable<String> {
 
 
             if (!pingAck) pingDelay++;
-            if (pingDelay >= 10)
+            if (pingDelay >= 3)
             {
                 assumeDead = true;
                 keepAlive = false;

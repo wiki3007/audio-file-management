@@ -3,6 +3,7 @@ import java.net.InetAddress;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Scanner;
 import java.util.concurrent.*;
 
@@ -103,33 +104,19 @@ public class RemoteHostMasterThread implements Callable<String> {
      * @throws InterruptedException If thread interrupted while exchanging
      */
     private void readCommands() throws InterruptedException, IOException {
-        //System.out.println("HOST READING COMMANDS");
+        String command = "";
         try
         {
-            String command = "";
             while (true) // keep reading until .readLine throws a timeout
             {
-                if (!command.equals("SENDING_FILE_DATA"))
-                {
-                    command = receiveMsg.readLine();
-                    //System.out.println(" HOST READ " + command);
-                    commandsList.add(command);
-                }
-                else
-                {
-                    command = receiveMsg.readLine();
-                    String name = command;
-                    command = receiveMsg.readLine();
-                    int fileSize = Integer.parseInt(command);
-                    lastFileData = soundFileSendOverReader.readNBytes(fileSize);
-
-                }
+                command = receiveMsg.readLine();
+                commandsList.add(command);
             }
         }
         catch (SocketTimeoutException waitTooLong)
         {
             // means no more messages to read, so just go on with your life
-            //System.out.println("HOST DIDNT READ COMMANDS");
+            //System.out.println(waitTooLong);
         }
     }
 
@@ -144,13 +131,19 @@ public class RemoteHostMasterThread implements Callable<String> {
         if (path.endsWith(".flac") || path.endsWith(".mp3") || path.endsWith(".ogg") || path.endsWith(".wav") || path.endsWith(".wma") || path.endsWith(".webm"))
         {
             File file = new File(path);
+            System.out.println("sendFile path: " + path);
             if (!file.exists()) return false;
             FileInputStream fileInputStream = new FileInputStream(file);
             sendMsg.println("SENDING_FILE_DATA");
             sendMsg.println(file.getName());
             sendMsg.println(file.length());
+
             byte[] buffer = fileInputStream.readNBytes((int) file.length());
-            soundFileSendOverWriter.write(buffer);
+            String bufferString = Arrays.toString(buffer);
+            sendMsg.println(bufferString);
+            System.out.println("sendFile len: " + file.length());
+            System.out.println("buffer size: " + buffer.length);
+            System.out.println("file test true");
             return true;
         }
         return false;
@@ -827,6 +820,17 @@ public class RemoteHostMasterThread implements Callable<String> {
             System.out.println("PERMISSION DENIED");
             return null;
         }
+
+        name = name.substring(0, name.length() - format.length() - 1);
+        System.out.println("subed name: " + name);
+        for (int i=0; i<path.length(); i++)
+        {
+            char test = path.charAt(i);
+            path = path.substring(i+1);
+            if (test == '/') break;
+        }
+        path = path.replace("%20", " ");
+        //System.out.println("path: " + path);
 
         sendMsg.println("REGISTER_FILE");
         //sendMsg.println(account.getId());
