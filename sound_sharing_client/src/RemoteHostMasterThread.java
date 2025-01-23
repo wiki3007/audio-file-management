@@ -140,6 +140,7 @@ public class RemoteHostMasterThread implements Callable<String> {
      * @throws IOException
      */
     boolean sendFileData(String path) throws IOException {
+        System.out.println("Begin sending file...");
         if (path.endsWith(".flac") || path.endsWith(".mp3") || path.endsWith(".ogg") || path.endsWith(".wav") || path.endsWith(".wma") || path.endsWith(".webm"))
         {
             File file = new File(path);
@@ -797,7 +798,7 @@ public class RemoteHostMasterThread implements Callable<String> {
      * Registers a file with the server, and if successful, adds it locally
      * Auto-fills date_added as "null" string
      * @param name Name of file
-     * @param description Description of filde
+     * @param description Description of file
      * @param duration Play duration of file
      * @param size Size of file in KB
      * @param format Format of file

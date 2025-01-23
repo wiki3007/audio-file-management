@@ -53,9 +53,19 @@ public class LoginGUI {
                     MainScreenGUI mainScreen = new MainScreenGUI(this.window, this.host);
                     this.window.setScene(new Scene(mainScreen.createMainScreen("guest")));
                 }else if(this.host.account.getType().equals("standard")){
-
+                    Alert errorAlert = new Alert(Alert.AlertType.INFORMATION);
+                    errorAlert.setTitle("Test");
+                    errorAlert.setContentText("Welcome!");
+                    errorAlert.show();
+                    MainScreenGUI mainScreen = new MainScreenGUI(this.window, this.host);
+                    this.window.setScene(new Scene(mainScreen.createMainScreen("standard")));
                 }else if(this.host.account.getType().equals("admin")){
-
+                    Alert errorAlert = new Alert(Alert.AlertType.INFORMATION);
+                    errorAlert.setTitle("Test");
+                    errorAlert.setContentText("Welcome!");
+                    errorAlert.show();
+                    MainScreenGUI mainScreen = new MainScreenGUI(this.window, this.host);
+                    this.window.setScene(new Scene(mainScreen.createMainScreen("admin")));
                 }
             }else{
                 Alert errorAlert = new Alert(Alert.AlertType.ERROR);

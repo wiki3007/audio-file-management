@@ -651,6 +651,7 @@ public class ServerComThread implements Callable<String> {
                         String fileDateReg = responseList.get(responsesListIndex++);
 
                         String filePathReg = "./sound_files/" + fileNameReg + "." + fileFormReg;
+                        System.out.println("ok");
                         if (fileDateReg.equalsIgnoreCase("null"))
                         {
                             if (database.execUpdate("INSERT INTO `file`(`owner_id`, `name`, `description`, `path`, `duration`, `size`, `format`, `type)\n" +

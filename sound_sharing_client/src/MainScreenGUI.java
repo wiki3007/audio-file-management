@@ -1,25 +1,31 @@
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.scene.Parent;
+import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
-import javafx.scene.layout.VBox;
 import javafx.scene.media.Media;
 import javafx.scene.media.MediaPlayer;
+import javafx.stage.FileChooser;
+import javafx.stage.Modality;
 import javafx.stage.Stage;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.MalformedURLException;
+import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class MainScreenGUI {
     Stage window;
     RemoteHostMasterThread host;
     SoundFile file;
     ArrayList<SoundFile> fileList;
+    ArrayList<SoundFile> privateFileList;
     SoundList list;
     ArrayList<SoundList> listLists;
     MediaPlayer musicPlayer;
@@ -94,9 +100,9 @@ public class MainScreenGUI {
         BorderPane listsLayout = new BorderPane();
 
         HBox filesButtons = new HBox();
-        Button addFileButton = new Button("Load all files");
+        Button loadAllFilesButton = new Button("Load all files");
 
-        filesButtons.getChildren().addAll(addFileButton);
+        filesButtons.getChildren().addAll(loadAllFilesButton);
 
         TableView fileTable = createFileTable();
 
@@ -173,14 +179,15 @@ public class MainScreenGUI {
 
         TabPane tabPane = new TabPane();
         GridPane layout = new GridPane();
+        GridPane privateLayout = new GridPane();
 
         BorderPane filesLayout = new BorderPane();
         BorderPane listsLayout = new BorderPane();
 
         HBox filesButtons = new HBox();
-        Button addFileButton = new Button("Load all files");
-
-        filesButtons.getChildren().addAll(addFileButton);
+        Button loadAllFilesButton = new Button("Load all files");
+        Button addFileButton = new Button("Add file");
+        Button deleteFileButton = new Button("Delete file");
 
         TableView fileTable = createFileTable();
 
@@ -190,6 +197,105 @@ public class MainScreenGUI {
 
         TableView.TableViewSelectionModel<SoundFile> fileSelectionModel = fileTable.getSelectionModel();
         fileSelectionModel.setSelectionMode(SelectionMode.SINGLE);
+
+        loadAllFilesButton.setOnAction((event) -> {
+            this.fileList = host.getPublicFileArray();
+            fileTable.getItems().clear();
+            for(SoundFile file : fileList){
+                fileTable.getItems().add(file);
+            }
+        });
+
+        addFileButton.setOnAction((event) -> {
+            FileChooser fileChooser = new FileChooser();
+            FileChooser.ExtensionFilter extFilter = new FileChooser.ExtensionFilter("Audio files (*.flac, *.mp3," +
+                    " *.ogg, *.wav, *.wma, *.webm", "*.flac", "*.mp3", "*.ogg", "*.wav", "*.wma", "*.webm");
+            fileChooser.getExtensionFilters().add(extFilter);
+
+            File selectedFile = fileChooser.showOpenDialog(window);
+            if(selectedFile != null){
+                try {
+                    String fileName = selectedFile.getName();
+                    String path = selectedFile.toURI().toURL().toString();
+                    String extension = fileName.substring(fileName.lastIndexOf(".") + 1,
+                            selectedFile.getName().length());
+                    int size = (int) selectedFile.getTotalSpace();
+                    //String dateAdded = LocalDate.now().toString();
+
+                    Media musicFile = new Media(selectedFile.toURI().toURL().toString());
+                    String duration = musicFile.getDuration().toString();
+
+                    GridPane descriptionWindow = new GridPane();
+                    Label descriptionLabel = new Label("Enter description");
+                    TextArea descriptionArea = new TextArea();
+
+                    HBox buttons = new HBox();
+
+                    Button addNewFileButton = new Button("Add file");
+                    Button cancelButton = new Button("Cancel");
+
+                    buttons.getChildren().addAll(addNewFileButton, cancelButton);
+
+                    addNewFileButton.setOnAction((windowEvent) -> {
+                        String description = "";
+                        description = descriptionArea.getText();
+
+                        try {
+                            host.addFile(fileName, description, duration, size, extension, "public", path);
+                            Stage stage = (Stage) addNewFileButton.getScene().getWindow();
+                            stage.close();
+
+                            this.fileList = host.getPublicFileArray();
+                            fileTable.getItems().clear();
+                            for(SoundFile file : fileList){
+                                fileTable.getItems().add(file);
+                            }
+                        } catch (IOException e) {
+                            throw new RuntimeException(e);
+                        }
+                    });
+
+                    cancelButton.setOnAction((cancelEvent) -> {
+                        Stage stage = (Stage) cancelButton.getScene().getWindow();
+                        stage.close();
+                    });
+
+                    descriptionWindow.add(descriptionLabel, 0, 0);
+                    descriptionWindow.add(descriptionArea, 0, 1);
+                    descriptionWindow.add(buttons, 0, 2);
+
+                    Scene descriptionScene = new Scene(descriptionWindow, 230, 100);
+                    Stage newWindow = new Stage();
+                    newWindow.initModality(Modality.APPLICATION_MODAL);
+                    newWindow.setTitle("Test");
+                    newWindow.setScene(descriptionScene);
+                    newWindow.setX(this.window.getX() + 200);
+                    newWindow.setY(this.window.getY() + 100);
+                    newWindow.show();
+                } catch (MalformedURLException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        });
+
+        deleteFileButton.setOnAction((deleteEvent) -> {
+            ObservableList<SoundFile> selectedFile = fileSelectionModel.getSelectedItems();
+            file = selectedFile.getFirst();
+
+            if(file != null){
+                host.deleteUserFile(file, file.getOwner_id());
+
+                this.fileList = host.getPublicFileArray();
+                fileTable.getItems().clear();
+                for(SoundFile file : fileList){
+                    fileTable.getItems().add(file);
+                }
+
+                file = null;
+            }
+        });
+
+        filesButtons.getChildren().addAll(loadAllFilesButton, addFileButton, deleteFileButton);
 
         filesLayout.setTop(filesButtons);
         filesLayout.setCenter(fileTable);
@@ -226,10 +332,30 @@ public class MainScreenGUI {
             if(this.musicPlayer != null){
                 musicPlayer.stop();
                 musicPlayer = null;
+                file = null;
             }
         });
 
-        playerButtonsLayout.getChildren().addAll(playButton, pauseButton, stopButton);
+        Button downloadButton = new Button("Download file");
+        downloadButton.setOnAction((event) -> {
+            ObservableList<SoundFile> selectedFile = fileSelectionModel.getSelectedItems();
+            file = selectedFile.getFirst();
+            try {
+                host.getSoundFile(file, true);
+                Alert successAlert = new Alert(Alert.AlertType.INFORMATION);
+                successAlert.setTitle("Test");
+                successAlert.setContentText("Successfully downloaded file to folder './downloads'.");
+                successAlert.show();
+            } catch (IOException e) {
+                Alert errorAlert = new Alert(Alert.AlertType.ERROR);
+                errorAlert.setTitle("Test");
+                errorAlert.setContentText("Something went wrong with downloading file.");
+                errorAlert.show();
+                throw new RuntimeException(e);
+            }
+        });
+
+        playerButtonsLayout.getChildren().addAll(playButton, pauseButton, stopButton, downloadButton);
         playerLayout.setCenter(playerButtonsLayout);
         filesLayout.setBottom(playerLayout);
 
@@ -240,15 +366,21 @@ public class MainScreenGUI {
         listsLayout.setTop(listsButtons);
 
         layout.add(filesLayout, 0, 0);
-        layout.add(listsLayout, 0, 1);
-        layout.add(playerLayout, 1, 0);
+        layout.add(listsLayout, 1, 0);
+        layout.add(playerLayout, 0, 1);
 
         Tab publicTab = new Tab("Public", layout);
+
+        TableView privateFileTable = createFileTable();
+
+        for(SoundFile file : fileList){
+            privateFileTable.getItems().add(file);
+        }
+
         Tab privateTab = new Tab("Private", new Label("Under construction"));
         Tab shareTab = new Tab("Share", new Label("Under construction"));
-        Tab uploadTab = new Tab("Upload", new Label("Under construction"));
 
-        tabPane.getTabs().addAll(publicTab, privateTab, shareTab, uploadTab);
+        tabPane.getTabs().addAll(publicTab, privateTab, shareTab);
         tabPane.setTabDragPolicy(TabPane.TabDragPolicy.FIXED);
         tabPane.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
 
@@ -260,15 +392,16 @@ public class MainScreenGUI {
         this.listLists = host.getPublicListArray();
 
         GridPane layout = new GridPane();
+        GridPane usersLayout = new GridPane();
         TabPane tabPane = new TabPane();
 
         BorderPane filesLayout = new BorderPane();
         BorderPane listsLayout = new BorderPane();
 
         HBox filesButtons = new HBox();
-        Button addFileButton = new Button("Load all files");
-
-        filesButtons.getChildren().addAll(addFileButton);
+        Button loadAllFilesButton = new Button("Load all files");
+        Button addFileButton = new Button("Add file");
+        Button deleteFileButton = new Button("Delete file");
 
         TableView fileTable = createFileTable();
 
@@ -276,8 +409,106 @@ public class MainScreenGUI {
             fileTable.getItems().add(file);
         }
 
+        loadAllFilesButton.setOnAction((event) -> {
+            this.fileList = host.getPublicFileArray();
+            fileTable.getItems().clear();
+            for(SoundFile file : fileList){
+                fileTable.getItems().add(file);
+            }
+        });
+
+        addFileButton.setOnAction((event) -> {
+            FileChooser fileChooser = new FileChooser();
+            FileChooser.ExtensionFilter extFilter = new FileChooser.ExtensionFilter("Audio files (*.flac, *.mp3," +
+                    " *.ogg, *.wav, *.wma, *.webm", "*.flac", "*.mp3", "*.ogg", "*.wav", "*.wma", "*.webm");
+            fileChooser.getExtensionFilters().add(extFilter);
+
+            File selectedFile = fileChooser.showOpenDialog(window);
+            System.out.println("ok");
+            if(selectedFile != null){
+                try {
+                    String fileName = selectedFile.getName();
+                    String path = selectedFile.toURI().toURL().toString();
+                    String extension = fileName.substring(fileName.lastIndexOf(".") + 1,
+                            selectedFile.getName().length());
+                    int size = (int) selectedFile.getTotalSpace();
+                    //String dateAdded = LocalDate.now().toString();
+
+                    Media musicFile = new Media(selectedFile.toURI().toURL().toString());
+                    String duration = musicFile.getDuration().toString();
+
+                    GridPane descriptionWindow = new GridPane();
+                    Label descriptionLabel = new Label("Enter description");
+                    TextArea descriptionArea = new TextArea();
+
+                    HBox buttons = new HBox();
+
+                    Button addNewFileButton = new Button("Add file");
+                    Button cancelButton = new Button("Cancel");
+
+                    buttons.getChildren().addAll(addNewFileButton, cancelButton);
+
+                    addNewFileButton.setOnAction((windowEvent) -> {
+                        String description = "";
+                        description = descriptionArea.getText();
+
+                        try {
+                            SoundFile tempFile = host.addFileAsServer(fileName, description, duration, size, extension,
+                                    "null", path);
+                            Stage stage = (Stage) addNewFileButton.getScene().getWindow();
+                            stage.close();
+
+                            this.fileList = host.getPublicFileArray();
+                            fileTable.getItems().clear();
+                            for(SoundFile file : fileList){
+                                fileTable.getItems().add(file);
+                            }
+                        } catch (IOException e) {
+                            throw new RuntimeException(e);
+                        }
+                    });
+
+                    cancelButton.setOnAction((cancelEvent) -> {
+                        Stage stage = (Stage) cancelButton.getScene().getWindow();
+                        stage.close();
+                    });
+
+                    descriptionWindow.add(descriptionLabel, 0, 0);
+                    descriptionWindow.add(descriptionArea, 0, 1);
+                    descriptionWindow.add(buttons, 0, 2);
+
+                    Scene descriptionScene = new Scene(descriptionWindow, 230, 100);
+                    Stage newWindow = new Stage();
+                    newWindow.initModality(Modality.APPLICATION_MODAL);
+                    newWindow.setTitle("Test");
+                    newWindow.setScene(descriptionScene);
+                    newWindow.setX(this.window.getX() + 200);
+                    newWindow.setY(this.window.getY() + 100);
+                    newWindow.show();
+                } catch (MalformedURLException e) {
+                    throw new RuntimeException(e);
+                }
+            } else{
+                System.out.println("error");
+            }
+        });
+
         TableView.TableViewSelectionModel<SoundFile> fileSelectionModel = fileTable.getSelectionModel();
         fileSelectionModel.setSelectionMode(SelectionMode.SINGLE);
+
+        deleteFileButton.setOnAction((deleteEvent) -> {
+            ObservableList<SoundFile> selectedFile = fileSelectionModel.getSelectedItems();
+            file = selectedFile.getFirst();
+            host.deleteUserFile(file, file.getOwner_id());
+
+            this.fileList = host.getPublicFileArray();
+            fileTable.getItems().clear();
+            for(SoundFile file : fileList){
+                fileTable.getItems().add(file);
+            }
+        });
+
+        filesButtons.getChildren().addAll(loadAllFilesButton, addFileButton, deleteFileButton);
 
         filesLayout.setTop(filesButtons);
         filesLayout.setCenter(fileTable);
@@ -317,7 +548,26 @@ public class MainScreenGUI {
             }
         });
 
-        playerButtonsLayout.getChildren().addAll(playButton, pauseButton, stopButton);
+        Button downloadButton = new Button("Download file");
+        downloadButton.setOnAction((event) -> {
+            ObservableList<SoundFile> selectedFile = fileSelectionModel.getSelectedItems();
+            file = selectedFile.getFirst();
+            try {
+                host.getSoundFile(file, true);
+                Alert successAlert = new Alert(Alert.AlertType.INFORMATION);
+                successAlert.setTitle("Test");
+                successAlert.setContentText("Successfully downloaded file to folder './downloads'.");
+                successAlert.show();
+            } catch (IOException e) {
+                Alert errorAlert = new Alert(Alert.AlertType.ERROR);
+                errorAlert.setTitle("Test");
+                errorAlert.setContentText("Something went wrong with downloading file.");
+                errorAlert.show();
+                throw new RuntimeException(e);
+            }
+        });
+
+        playerButtonsLayout.getChildren().addAll(playButton, pauseButton, stopButton, downloadButton);
         playerLayout.setCenter(playerButtonsLayout);
         filesLayout.setBottom(playerLayout);
 
@@ -328,13 +578,15 @@ public class MainScreenGUI {
         listsLayout.setTop(listsButtons);
 
         layout.add(filesLayout, 0, 0);
-        layout.add(listsLayout, 0, 1);
-        layout.add(playerLayout, 1, 0);
+        layout.add(listsLayout, 1, 0);
+        layout.add(playerLayout, 0, 1);
+
+
 
         Tab publicTab = new Tab("Public", layout);
-        Tab privateTab = new Tab("Upload", new Label("Under construction"));
+
         Tab usersTab = new Tab("Users", new Label("Under construction"));
-        tabPane.getTabs().addAll(publicTab, privateTab, usersTab);
+        tabPane.getTabs().addAll(publicTab, usersTab);
         tabPane.setTabDragPolicy(TabPane.TabDragPolicy.FIXED);
         tabPane.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
 

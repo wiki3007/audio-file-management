@@ -35,7 +35,7 @@ public class SignUpGUI{
 
         Button loginButton = new Button("Sign up");
 
-        Button changeToSignInButton = new Button("Register");
+        Button changeToSignInButton = new Button("Login");
         changeToSignInButton.setOnAction((event) -> {
             LoginGUI loginScreen = new LoginGUI(this.window, this.host);
             Scene loginScene = new Scene(loginScreen.createLoginScreen());
@@ -65,7 +65,8 @@ public class SignUpGUI{
                 errorAlert.showAndWait();
                 return;
             }
-            if(host.loginProcedureArg(loginField.getText(), passwordField.getText())){
+            System.out.println("ok");
+            if(host.registerProcedureArgs(loginField.getText(), passwordField.getText())){
                 Alert errorAlert = new Alert(Alert.AlertType.INFORMATION);
                 errorAlert.setTitle("Test");
                 errorAlert.setContentText("Welcome!");
