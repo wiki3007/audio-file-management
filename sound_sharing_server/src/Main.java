@@ -15,11 +15,11 @@ import java.util.concurrent.Executors;
  *  Get public lists            Y / N / N
  *
  * Standard:
- *  Registering account         Y / N / N
- *  Log in to server            Y / N / N
- *  Get public files            Y / N / N
+ *  Registering account         Y / Y / Y
+ *  Log in to server            Y / Y / Y
+ *  Get public files            Y / Y / Y
  *  Get private files           Y / N / N
- *  Upload public files         Y / N / N
+ *  Upload public files         Y / Y / Y
  *  Upload private files        Y / N / N
  *  Delete private files        Y / N / N
  *  Share private files         Y / N / N
@@ -33,8 +33,8 @@ import java.util.concurrent.Executors;
  *  Create private lists        Y / N / N
  *  Delete private lists        Y / N / N
  *  Share private lists         Y / N / N
- *  Listen to files on server   N / N / N
- *  Download files from server  Y / N / N
+ *  Listen to files on server   Y / Y / Y (but file isn't deleted properly)
+ *  Download files from server  Y / Y / Y
  *
  * Admin:
  *  All things from standard    Y / N / N

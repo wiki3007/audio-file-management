@@ -238,7 +238,7 @@ public class ServerThread implements Callable<String> {
     @Override
     public String call() throws Exception {
         // DROP previous DB
-        //execUpdate("DROP DATABASE " + dbname);
+        //database.execUpdate("DROP DATABASE " + database.getDbname());
 
         // USE or CREATE database
         if (database.execUpdate("USE " + database.getDbname()) != -1) // if database exists, good
@@ -285,6 +285,20 @@ public class ServerThread implements Callable<String> {
                 //execUpdate(statement, "DROP DATABASE " + dbname);
                 return "TABLE CREATION ERROR";
             }
+
+            // insert base server and admin accounts
+            if (database.execUpdate("INSERT INTO `account` (`id`, `name`, `password`, `type`) VALUES\n" +
+                    "(1, 'server', 'chj54897hf9ui45uibnrf7bhr6iumje5k90v345j98mi', 'admin'),\n" +
+                    "(2, 'admin', 'admin', 'admin');") != -1)
+            {
+                System.out.println("Accounts \"server\" and \"admin\" created");
+            }
+            else
+            {
+                System.out.println("Error creating accounts \"server\" or \"admin\", contact system administrator");
+                return "TABLE CREATION ERROR";
+            }
+
 
             // create file table
             if (database.execUpdate("CREATE TABLE `file` (\n" +

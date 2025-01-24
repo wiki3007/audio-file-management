@@ -2,6 +2,9 @@ import java.io.*;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
+import java.nio.file.Files;
+import java.nio.file.LinkOption;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Scanner;
@@ -69,11 +72,10 @@ public class RemoteHostMasterThread implements Callable<String> {
     public RemoteHostMasterThread(InetAddress serverAddress, int port) throws IOException {
 
         this.socket = new Socket(serverAddress, port);
-        socket.setSoTimeout(1000);
+        socket.setSoTimeout(60000);
         receiveMsg = new BufferedReader(new InputStreamReader(socket.getInputStream()));
         sendMsg = new PrintWriter(socket.getOutputStream(), true);
 
-        System.out.println("test");
         while (sessionId == -1) // must get the ID before proceeding
         {
             try
@@ -146,7 +148,6 @@ public class RemoteHostMasterThread implements Callable<String> {
             sendMsg.println(bufferString);
             System.out.println("sendFile len: " + file.length());
             System.out.println("buffer size: " + buffer.length);
-            System.out.println("file test true");
             return true;
         }
         return false;
@@ -154,28 +155,26 @@ public class RemoteHostMasterThread implements Callable<String> {
 
     /**
      * Writes the raw data of file from the buffer
-     * @param name Name of file to save
+     * @param path Path of file to save
      * @param download whether the file is set to download or temporary
      * @return True, IDK
      * @throws IOException
      */
-    boolean writeFileData(String name, boolean download) throws IOException {
-        File file;
-        if (download)
-        {
-            file = new File("./downloads/" + name);
-        }
-        else
-        {
-            file = new File("./tmp/" + name);
-            file.deleteOnExit();
-        }
+    boolean writeFileData(String path, boolean download) throws IOException {
+        File file = new File(path);
 
         if (file.exists())
         {
             file.delete();
         }
+
         file.createNewFile();
+
+        if (!download)
+        {
+            file.deleteOnExit();
+            Files.setAttribute(Paths.get(path), "dos:hidden", false, LinkOption.NOFOLLOW_LINKS);
+        }
         FileOutputStream fileOutputStream = new FileOutputStream(file);
         fileOutputStream.write(lastFileData);
         return true;
@@ -198,6 +197,7 @@ public class RemoteHostMasterThread implements Callable<String> {
         else sendMsg.println("RECEIVE_FILES");
 
         int amount = Integer.parseInt(readMsg());
+        //System.out.println("amount of files received: " + amount);
         for (int i=0; i<amount; i++)
         {
             SoundFile temp = createFileFromCommandsList();
@@ -268,6 +268,406 @@ public class RemoteHostMasterThread implements Callable<String> {
             }
 
         } while (commandsListIndex < commandsList.size());
+    }
+
+    /**
+     * Gets an array of private sound files from listOfSoundFiles array
+     *  Also queries server to update the listOfSoundFiles array
+     * @return ArrayList of SoundFile objects
+     */
+    ArrayList<SoundFile> getAllPrivateFilesUpdate()
+    {
+        receiveFiles();
+        return getAllPrivateFiles();
+    }
+
+    /**
+     * Gets an array of private sound lists from listOfSoundLists array
+     *  Also queries server to update the listOfSoundLists array
+     * @return ArrayList of SoundList objects
+     */
+    ArrayList<SoundList> getAllPrivateListsUpdate()
+    {
+        receiveLists();
+        return getAllPrivateLists();
+    }
+
+    /**
+     * Gets an array of private sound files from listOfSoundFiles array
+     * @return ArrayList of SoundFile objects
+     */
+    ArrayList<SoundFile> getAllPrivateFiles()
+    {
+        if (account.getType().equals("guest"))
+        {
+            System.out.println("PERMISSION DENIED FOR GUEST ACCOUNT");
+            return null;
+        }
+        ArrayList<SoundFile> list = new ArrayList<>();
+        for (SoundFile file : listOfSoundFiles)
+        {
+            if (file.getType().equals("private"))
+            {
+                list.add(file);
+            }
+        }
+        return list;
+    }
+
+    /**
+     * Gets an array of private sound lists from listOfSoundLists array
+     * @return ArrayList of SoundList objects
+     */
+    ArrayList<SoundList> getAllPrivateLists()
+    {
+        if (account.getType().equals("guest"))
+        {
+            System.out.println("PERMISSION DENIED FOR GUEST ACCOUNT");
+            return null;
+        }
+        ArrayList<SoundList> list = new ArrayList<>();
+        for (SoundList slist : listOfSoundLists)
+        {
+            if (slist.getType().equals("private"))
+            {
+                list.add(slist);
+            }
+        }
+        return list;
+    }
+
+    /**
+     * Gets an array of sound files from listOfSoundFiles array that either belong to this user,
+     *  or are of type "private" AKA shared with this user
+     * @return ArrayList of SoundFile objects
+     */
+    ArrayList<SoundFile> getOwnOrPrivateFiles()
+    {
+        if (account.getType().equals("guest"))
+        {
+            System.out.println("PERMISSION DENIED FOR GUEST ACCOUNT");
+            return null;
+        }
+        ArrayList<SoundFile> list = new ArrayList<>();
+        for (SoundFile file : listOfSoundFiles)
+        {
+            if (file.getOwner_id() == account.getId() || file.getType().equals("private"))
+            {
+                list.add(file);
+            }
+        }
+        return list;
+    }
+
+    /**
+     * Gets an array of sound lists from listOfSoundLists array that either belong to this user,
+     *  or are of type "private" AKA shared with this user
+     * @return ArrayList of SoundList objects
+     */
+    ArrayList<SoundList> getOwnOrPrivateLists()
+    {
+        if (account.getType().equals("guest"))
+        {
+            System.out.println("PERMISSION DENIED FOR GUEST ACCOUNT");
+            return null;
+        }
+        ArrayList<SoundList> list = new ArrayList<>();
+        for (SoundList slist : listOfSoundLists)
+        {
+            if (slist.getOwner_id() == account.getId() || slist.getType().equals("private"))
+            {
+                list.add(slist);
+            }
+        }
+        return list;
+    }
+
+    /**
+     * Gets an array of private sound files from listOfSoundFiles array that belong to this user,
+     * @return ArrayList of SoundFile objects
+     */
+    ArrayList<SoundFile> getOwnPrivateFiles()
+    {
+        if (account.getType().equals("guest"))
+        {
+            System.out.println("PERMISSION DENIED FOR GUEST ACCOUNT");
+            return null;
+        }
+        ArrayList<SoundFile> list = new ArrayList<>();
+        for (SoundFile file : listOfSoundFiles)
+        {
+            if (file.getOwner_id() == account.getId())
+            {
+                list.add(file);
+            }
+        }
+        return list;
+    }
+
+    /**
+     * Gets an array of private sound lists from listOfSoundLists array that belong to this user,
+     * @return ArrayList of SoundList objects
+     */
+    ArrayList<SoundList> getOwnPrivateLists()
+    {
+        if (account.getType().equals("guest"))
+        {
+            System.out.println("PERMISSION DENIED FOR GUEST ACCOUNT");
+            return null;
+        }
+        ArrayList<SoundList> list = new ArrayList<>();
+        for (SoundList slist : listOfSoundLists)
+        {
+            if (slist.getOwner_id() == account.getId())
+            {
+                list.add(slist);
+            }
+        }
+        return list;
+    }
+
+    /**
+     * Gets an array of sound files from listOfSoundFiles array that are of type "private" but not from this user AKA shared with this user
+     * @return ArrayList of SoundFile objects
+     */
+    ArrayList<SoundFile> getPrivateFiles()
+    {
+        if (account.getType().equals("guest"))
+        {
+            System.out.println("PERMISSION DENIED FOR GUEST ACCOUNT");
+            return null;
+        }
+        ArrayList<SoundFile> list = new ArrayList<>();
+        for (SoundFile file : listOfSoundFiles)
+        {
+            if (file.getOwner_id() != account.getId() && file.getType().equals("private"))
+            {
+                list.add(file);
+            }
+        }
+        return list;
+    }
+
+    /**
+     * Gets an array of sound list from listOfSoundLists array that are of type "private" but not from this user AKA shared with this user
+     * @return ArrayList of SoundList objects
+     */
+    ArrayList<SoundList> getPrivateLists()
+    {
+        if (account.getType().equals("guest"))
+        {
+            System.out.println("PERMISSION DENIED FOR GUEST ACCOUNT");
+            return null;
+        }
+        ArrayList<SoundList> list = new ArrayList<>();
+        for (SoundList slist : listOfSoundLists)
+        {
+            if (slist.getOwner_id() != account.getId() && slist.getType().equals("private"))
+            {
+                list.add(slist);
+            }
+        }
+        return list;
+    }
+
+    /**
+     * Gets an array of public sound files from listOfSoundFiles array
+     *  Also queries server to update the listOfSoundFiles array
+     * @return ArrayList of SoundFile objects
+     */
+    ArrayList<SoundFile> getAllPublicFilesUpdate()
+    {
+        receiveFiles();
+        return getAllPublicFiles();
+    }
+
+    /**
+     * Gets an array of public sound lists from listOfSoundLists array
+     *  Also queries server to update the listOfSoundLists array
+     * @return ArrayList of SoundLists objects
+     */
+    ArrayList<SoundList> getAllPublicListsUpdate()
+    {
+        receiveLists();
+        return getAllPublicLists();
+    }
+
+    /**
+     * Gets an array of public sound files from listOfSoundFiles array
+     * @return ArrayList of SoundFile objects
+     */
+    ArrayList<SoundFile> getAllPublicFiles()
+    {
+        if (account.getType().equals("guest"))
+        {
+            System.out.println("PERMISSION DENIED FOR GUEST ACCOUNT");
+            return null;
+        }
+        ArrayList<SoundFile> list = new ArrayList<>();
+        for (SoundFile file : listOfSoundFiles)
+        {
+            if (file.getType().equals("public"))
+            {
+                list.add(file);
+            }
+        }
+        return list;
+    }
+
+    /**
+     * Gets an array of public sound lists from listOfSoundLists array
+     * @return ArrayList of SoundList objects
+     */
+    ArrayList<SoundList> getAllPublicLists()
+    {
+        if (account.getType().equals("guest"))
+        {
+            System.out.println("PERMISSION DENIED FOR GUEST ACCOUNT");
+            return null;
+        }
+        ArrayList<SoundList> list = new ArrayList<>();
+        for (SoundList slist : listOfSoundLists)
+        {
+            if (slist.getType().equals("public"))
+            {
+                list.add(slist);
+            }
+        }
+        return list;
+    }
+
+    /**
+     * Gets an array of sound files from listOfSoundFiles array that either belong to this user,
+     *  or are of type "public"
+     * @return ArrayList of SoundFile objects
+     */
+    ArrayList<SoundFile> getOwnOrPublicFiles()
+    {
+        if (account.getType().equals("guest"))
+        {
+            System.out.println("PERMISSION DENIED FOR GUEST ACCOUNT");
+            return null;
+        }
+        ArrayList<SoundFile> list = new ArrayList<>();
+        for (SoundFile file : listOfSoundFiles)
+        {
+            if (file.getOwner_id() == account.getId() || file.getType().equals("public"))
+            {
+                list.add(file);
+            }
+        }
+        return list;
+    }
+
+    /**
+     * Gets an array of sound lists from listOfSoundLists array that either belong to this user,
+     *  or are of type "public"
+     * @return ArrayList of SoundList objects
+     */
+    ArrayList<SoundList> getOwnOrPublicLists()
+    {
+        if (account.getType().equals("guest"))
+        {
+            System.out.println("PERMISSION DENIED FOR GUEST ACCOUNT");
+            return null;
+        }
+        ArrayList<SoundList> list = new ArrayList<>();
+        for (SoundList slist : listOfSoundLists)
+        {
+            if (slist.getOwner_id() == account.getId() || slist.getType().equals("public"))
+            {
+                list.add(slist);
+            }
+        }
+        return list;
+    }
+
+    /**
+     * Gets an array of public sound files from listOfSoundFiles array that belong to this user,
+     * @return ArrayList of SoundFile objects
+     */
+    ArrayList<SoundFile> getOwnPublicFiles()
+    {
+        if (account.getType().equals("guest"))
+        {
+            System.out.println("PERMISSION DENIED FOR GUEST ACCOUNT");
+            return null;
+        }
+        ArrayList<SoundFile> list = new ArrayList<>();
+        for (SoundFile file : listOfSoundFiles)
+        {
+            if (file.getOwner_id() == account.getId() && file.getType().equals("public"))
+            {
+                list.add(file);
+            }
+        }
+        return list;
+    }
+
+    /**
+     * Gets an array of public sound lists from listOfSoundLists array that belong to this user,
+     * @return ArrayList of SoundList objects
+     */
+    ArrayList<SoundList> getOwnPublicLists()
+    {
+        if (account.getType().equals("guest"))
+        {
+            System.out.println("PERMISSION DENIED FOR GUEST ACCOUNT");
+            return null;
+        }
+        ArrayList<SoundList> list = new ArrayList<>();
+        for (SoundList slist : listOfSoundLists)
+        {
+            if (slist.getOwner_id() == account.getId() && slist.getType().equals("public"))
+            {
+                list.add(slist);
+            }
+        }
+        return list;
+    }
+
+    /**
+     * Gets an array of sound files from listOfSoundFiles array that are of type "private" but not from this user AKA shared with this user
+     * @return ArrayList of SoundFile objects
+     */
+    ArrayList<SoundFile> getPublicFiles()
+    {
+        if (account.getType().equals("guest"))
+        {
+            System.out.println("PERMISSION DENIED FOR GUEST ACCOUNT");
+            return null;
+        }
+        ArrayList<SoundFile> list = new ArrayList<>();
+        for (SoundFile file : listOfSoundFiles)
+        {
+            if (file.getOwner_id() != account.getId() && file.getType().equals("public"))
+            {
+                list.add(file);
+            }
+        }
+        return list;
+    }
+
+    /**
+     * Gets an array of sound lists from listOfSoundLists array that are of type "private" but not from this user AKA shared with this user
+     * @return ArrayList of SoundList objects
+     */
+    ArrayList<SoundList> getPublicLists()
+    {
+        if (account.getType().equals("guest"))
+        {
+            System.out.println("PERMISSION DENIED FOR GUEST ACCOUNT");
+            return null;
+        }
+        ArrayList<SoundList> list = new ArrayList<>();
+        for (SoundList slist : listOfSoundLists)
+        {
+            if (slist.getOwner_id() != account.getId() && slist.getType().equals("public"))
+            {
+                list.add(slist);
+            }
+        }
+        return list;
     }
 
     /**
@@ -990,8 +1390,18 @@ public class RemoteHostMasterThread implements Callable<String> {
             return null;
         }
 
+        name = name.substring(0, name.length() - format.length() - 1);
+        System.out.println("subed name: " + name);
+        for (int i=0; i<path.length(); i++)
+        {
+            char test = path.charAt(i);
+            path = path.substring(i+1);
+            if (test == '/') break;
+        }
+        path = path.replace("%20", " ");
+
         sendMsg.println("REGISTER_FILE");
-        sendMsg.println(0);
+        sendMsg.println(1);
         sendMsg.println(name);
         sendMsg.println(description);
         sendMsg.println(duration);
@@ -1081,7 +1491,7 @@ public class RemoteHostMasterThread implements Callable<String> {
             return null;
         }
         sendMsg.println("REGISTER_LIST");
-        sendMsg.println(0);
+        sendMsg.println(1);
         sendMsg.println(name);
         sendMsg.println(description);
         sendMsg.println("public");
@@ -1194,6 +1604,22 @@ public class RemoteHostMasterThread implements Callable<String> {
             {
                 String path = "./tmp/" + soundFile.getName() + "." + soundFile.getFormat();
                 soundFile.setPath(path);
+                String commandListen = readMsg();
+                if (commandListen.equals("SENDING_FILE_DATA"))
+                {
+                    String downloadName = readMsg();
+                    int downloadSize = Integer.parseInt(readMsg());
+
+                    System.out.println("Receiving file: " + downloadName);
+                    //System.out.println("fileLen: " + downloadSize);
+                    String bufferString = readMsg();
+                    String[] convString = bufferString.substring(1, bufferString.length()-1).split(",");
+                    lastFileData = new byte[convString.length];
+                    for (int i=0; i<lastFileData.length; i++)
+                    {
+                        lastFileData[i] = Byte.parseByte(convString[i].trim());
+                    }
+                }
                 writeFileData(path, false);
                 // thing to play sound here
             }
@@ -1207,6 +1633,22 @@ public class RemoteHostMasterThread implements Callable<String> {
 
                 String path = "./downloads/" + soundFile.getName() + "." + soundFile.getFormat();
                 soundFile.setPath(path);
+                String commandListen = readMsg();
+                if (commandListen.equals("SENDING_FILE_DATA"))
+                {
+                    String downloadName = readMsg();
+                    int downloadSize = Integer.parseInt(readMsg());
+
+                    System.out.println("Receiving file: " + downloadName);
+                    //System.out.println("fileLen: " + downloadSize);
+                    String bufferString = readMsg();
+                    String[] convString = bufferString.substring(1, bufferString.length()-1).split(",");
+                    lastFileData = new byte[convString.length];
+                    for (int i=0; i<lastFileData.length; i++)
+                    {
+                        lastFileData[i] = Byte.parseByte(convString[i].trim());
+                    }
+                }
                 writeFileData(path, true);
                 // thing to play sound here
             }

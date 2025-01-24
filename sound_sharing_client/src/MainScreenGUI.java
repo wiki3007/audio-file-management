@@ -55,7 +55,7 @@ public class MainScreenGUI {
         durationColumn.setCellValueFactory(new PropertyValueFactory<>("duration"));
         tableView.getColumns().add(durationColumn);
 
-        TableColumn<String, SoundFile> sizeColumn = new TableColumn<>("Size");
+        TableColumn<String, SoundFile> sizeColumn = new TableColumn<>("Size (B)");
         sizeColumn.setCellValueFactory(new PropertyValueFactory<>("size"));
         tableView.getColumns().add(sizeColumn);
 
@@ -68,7 +68,7 @@ public class MainScreenGUI {
         tableView.getColumns().add(typeColumn);
 
         TableColumn<String, SoundFile> dateAddedColumn = new TableColumn<>("Date added");
-        dateAddedColumn.setCellValueFactory(new PropertyValueFactory<>("dateAdded"));
+        dateAddedColumn.setCellValueFactory(new PropertyValueFactory<>("date_added"));
         tableView.getColumns().add(dateAddedColumn);
 
         return tableView;
@@ -91,8 +91,8 @@ public class MainScreenGUI {
     }
 
     private Parent createGuestScreen(){
-        this.fileList = host.getPublicFileArray();
-        this.listLists = host.getPublicListArray();
+        this.fileList = host.getAllPublicFilesUpdate();
+        this.listLists = host.getAllPublicListsUpdate();
 
         GridPane layout = new GridPane();
 
@@ -174,8 +174,8 @@ public class MainScreenGUI {
     }
 
     private Parent createStandardScreen(){
-        this.fileList = host.getPublicFileArray();
-        this.listLists = host.getPublicListArray();
+        this.fileList = host.getAllPublicFilesUpdate();
+        this.listLists = host.getAllPublicListsUpdate();
 
         TabPane tabPane = new TabPane();
         GridPane layout = new GridPane();
@@ -199,7 +199,7 @@ public class MainScreenGUI {
         fileSelectionModel.setSelectionMode(SelectionMode.SINGLE);
 
         loadAllFilesButton.setOnAction((event) -> {
-            this.fileList = host.getPublicFileArray();
+            this.fileList = host.getAllPublicFilesUpdate();
             fileTable.getItems().clear();
             for(SoundFile file : fileList){
                 fileTable.getItems().add(file);
@@ -219,7 +219,7 @@ public class MainScreenGUI {
                     String path = selectedFile.toURI().toURL().toString();
                     String extension = fileName.substring(fileName.lastIndexOf(".") + 1,
                             selectedFile.getName().length());
-                    int size = (int) selectedFile.getTotalSpace();
+                    int size = (int) selectedFile.length();
                     //String dateAdded = LocalDate.now().toString();
 
                     Media musicFile = new Media(selectedFile.toURI().toURL().toString());
@@ -283,9 +283,9 @@ public class MainScreenGUI {
             file = selectedFile.getFirst();
 
             if(file != null){
-                host.deleteUserFile(file, file.getOwner_id());
+                host.deleteFile(file);
 
-                this.fileList = host.getPublicFileArray();
+                this.fileList = host.getAllPublicFilesUpdate();
                 fileTable.getItems().clear();
                 for(SoundFile file : fileList){
                     fileTable.getItems().add(file);
@@ -388,8 +388,8 @@ public class MainScreenGUI {
     }
 
     private Parent createAdminScreen(){
-        this.fileList = host.getPublicFileArray();
-        this.listLists = host.getPublicListArray();
+        this.fileList = host.getAllPublicFilesUpdate();
+        this.listLists = host.getAllPublicListsUpdate();
 
         GridPane layout = new GridPane();
         GridPane usersLayout = new GridPane();
@@ -410,7 +410,7 @@ public class MainScreenGUI {
         }
 
         loadAllFilesButton.setOnAction((event) -> {
-            this.fileList = host.getPublicFileArray();
+            this.fileList = host.getAllPublicFilesUpdate();
             fileTable.getItems().clear();
             for(SoundFile file : fileList){
                 fileTable.getItems().add(file);
@@ -431,7 +431,7 @@ public class MainScreenGUI {
                     String path = selectedFile.toURI().toURL().toString();
                     String extension = fileName.substring(fileName.lastIndexOf(".") + 1,
                             selectedFile.getName().length());
-                    int size = (int) selectedFile.getTotalSpace();
+                    int size = (int) selectedFile.length();
                     //String dateAdded = LocalDate.now().toString();
 
                     Media musicFile = new Media(selectedFile.toURI().toURL().toString());
@@ -458,7 +458,7 @@ public class MainScreenGUI {
                             Stage stage = (Stage) addNewFileButton.getScene().getWindow();
                             stage.close();
 
-                            this.fileList = host.getPublicFileArray();
+                            this.fileList = host.getAllPrivateFilesUpdate();
                             fileTable.getItems().clear();
                             for(SoundFile file : fileList){
                                 fileTable.getItems().add(file);
@@ -501,7 +501,7 @@ public class MainScreenGUI {
             file = selectedFile.getFirst();
             host.deleteUserFile(file, file.getOwner_id());
 
-            this.fileList = host.getPublicFileArray();
+            this.fileList = host.getAllPublicFilesUpdate();
             fileTable.getItems().clear();
             for(SoundFile file : fileList){
                 fileTable.getItems().add(file);

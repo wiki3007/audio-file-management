@@ -138,7 +138,6 @@ public class ServerComThread implements Callable<String> {
             sendMsg.println(bufferString);
             System.out.println("sendFile len: " + file.length());
             System.out.println("buffer size: " + buffer.length);
-            System.out.println("file test true");
             return true;
         }
         return false;
@@ -298,11 +297,14 @@ public class ServerComThread implements Callable<String> {
                 {
                     case "RECEIVE_FILES":
                         ResultSet filesSetRcv = database.searchDatabase("SELECT `id`, `owner_id`, `name`, `description`, `duration`, `size`, `format`, `type`, `date_added`\n" +
-                                "FROM `file` INNER JOIN `file_sharing`\n" +
+                                "FROM `file` LEFT JOIN `file_sharing`\n" +
                                 "ON `file`.`owner_id` = `file_sharing`.`account_id`\n" +
-                                "WHERE `owner_id` = " + accountId + ";");
+                                "WHERE `owner_id` = " + accountId + "\n" +
+                                "OR `account_id` = " + accountId + "\n" +
+                                "OR `type` = \"public\";");
                         ArrayList<SoundFile> filesRcv = makeFileListFromResultSet(filesSetRcv);
                         sendMsg.println(filesRcv.size()); // amount
+                        //System.out.println("Amount of files to send: " + filesRcv.size());
                         for (SoundFile file : filesRcv)
                         {
                             ArrayList<String> elements = file.getArrayOfElements();
@@ -314,10 +316,8 @@ public class ServerComThread implements Callable<String> {
                         break;
                     case "RECEIVE_FILES_PUBLIC":
                         ResultSet filesSetRcvPub = database.searchDatabase("SELECT `id`, `owner_id`, `name`, `description`, `duration`, `size`, `format`, `type`, `date_added`\n" +
-                                "FROM `file` INNER JOIN `file_sharing`\n" +
-                                "ON `file`.`owner_id` = `file_sharing`.`account_id`\n" +
-                                "WHERE `owner_id` = " + accountId + "\n" +
-                                "AND `type` = \"public\";");
+                                "FROM `file`\n" +
+                                "WHERE `type` = \"public\";");
                         ArrayList<SoundFile> filesRcvPub = makeFileListFromResultSet(filesSetRcvPub);
                         sendMsg.println(filesRcvPub.size()); // amount
                         for (SoundFile file : filesRcvPub)
@@ -331,9 +331,11 @@ public class ServerComThread implements Callable<String> {
                         break;
                     case "RECEIVE_LISTS":
                         ResultSet listsSetRcv = database.searchDatabase("SELECT `id`, `owner_id`, `name`, `description`, `type`\n" +
-                                "FROM `list_main` INNER JOIN `list_sharing`\n" +
+                                "FROM `list_main` LEFT JOIN `list_sharing`\n" +
                                 "ON `list_main`.`owner_id` = `list_sharing`.`account_id`\n" +
-                                "WHERE `owner_id` = " + accountId + ";");
+                                "WHERE `owner_id` = " + accountId + "\n" +
+                                "OR `account_id` = " + accountId + "\n" +
+                                "OR `type` = \"public\";");
                         ArrayList<SoundList> listsRcv = makeListListFromResultSet(listsSetRcv);
                         sendMsg.println(listsRcv.size());
                         for (SoundList list: listsRcv)
@@ -417,7 +419,6 @@ public class ServerComThread implements Callable<String> {
                     case "REGISTER_REQUEST":
                         String loginReg = responseList.get(responsesListIndex++);
                         String passwordReg = responseList.get(responsesListIndex++);
-                        System.out.println("register test");
                         if (loginReg.equalsIgnoreCase("guest"))
                         {
                             sendMsg.println("REGISTER_ERROR");
@@ -501,6 +502,7 @@ public class ServerComThread implements Callable<String> {
                         String fileFormReg = responseList.get(responsesListIndex++);
                         String fileTypeReg = responseList.get(responsesListIndex++);
                         String fileDateReg = responseList.get(responsesListIndex++);
+                        /*
                         System.out.println("fileAccountIdReg: " + fileAccountIdReg);
                         System.out.println("fileNameReg: " + fileNameReg);
                         System.out.println("fileDescReg: " + fileDescReg);
@@ -509,6 +511,7 @@ public class ServerComThread implements Callable<String> {
                         System.out.println("fileFormReg: " + fileFormReg);
                         System.out.println("fileTypeReg: " + fileTypeReg);
                         System.out.println("fileDateReg: " + fileDateReg);
+                        */
 
                         String command = responseList.get(responsesListIndex++);
                         if (command.equals("SENDING_FILE_DATA"))
@@ -518,7 +521,6 @@ public class ServerComThread implements Callable<String> {
 
                             System.out.println("Receiving file: " + downloadName);
                             //System.out.println("fileLen: " + downloadSize);
-                            //System.out.println("test 0");
                             String bufferString = responseList.get(responsesListIndex++);
                             String[] convString = bufferString.substring(1, bufferString.length()-1).split(",");
                             lastFileData = new byte[convString.length];
@@ -526,9 +528,6 @@ public class ServerComThread implements Callable<String> {
                             {
                                 lastFileData[i] = Byte.parseByte(convString[i].trim());
                             }
-                            //System.out.println("test 1");
-                            //System.out.println(lastFileData.length);
-                            //System.out.println("test 2");
                         }
                         else
                         {
@@ -1034,7 +1033,7 @@ public class ServerComThread implements Callable<String> {
                         int soundIdListen = Integer.parseInt(responseList.get(responsesListIndex++));
 
                         ResultSet listenSet = database.searchDatabase("SELECT *\n" +
-                                "FROM `file` INNER JOIN `file_sharing`\n" +
+                                "FROM `file` LEFT JOIN `file_sharing`\n" +
                                 "ON `file`.`id` = `file_sharing`.`file_id`\n" +
                                 "WHERE (`file`.`owner_id` = " + accountId + "\n" +
                                 "OR `file_sharing`.`account_id` = " + accountId + ")\n" +
@@ -1044,9 +1043,10 @@ public class ServerComThread implements Callable<String> {
                             sendMsg.println("LISTEN_SOUND_ERROR");
                             break;
                         }
-
-                        sendFileData(listenSet.getString("path"));
                         sendMsg.println("LISTEN_SOUND_APPROVED");
+                        String path = "./sound_files/" + listenSet.getString("path") + "." + listenSet.getString("format");
+                        sendFileData(path);
+
                         break;
                     case "CHANGE_USER_TYPE":
                         String userIdUserType = responseList.get(responsesListIndex++);
