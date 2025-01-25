@@ -162,12 +162,14 @@ public class RemoteHostMasterThread implements Callable<String> {
      */
     boolean writeFileData(String path, boolean download) throws IOException {
         File file = new File(path);
+        System.out.println(path);
 
         if (file.exists())
         {
             file.delete();
         }
 
+        System.out.println(new File(".").getAbsolutePath());
         file.createNewFile();
 
         if (!download)
@@ -498,11 +500,13 @@ public class RemoteHostMasterThread implements Callable<String> {
      */
     ArrayList<SoundFile> getAllPublicFiles()
     {
+        /*
         if (account.getType().equals("guest"))
         {
             System.out.println("PERMISSION DENIED FOR GUEST ACCOUNT");
             return null;
         }
+        */
         ArrayList<SoundFile> list = new ArrayList<>();
         for (SoundFile file : listOfSoundFiles)
         {
@@ -520,11 +524,13 @@ public class RemoteHostMasterThread implements Callable<String> {
      */
     ArrayList<SoundList> getAllPublicLists()
     {
+        /*
         if (account.getType().equals("guest"))
         {
             System.out.println("PERMISSION DENIED FOR GUEST ACCOUNT");
             return null;
         }
+         */
         ArrayList<SoundList> list = new ArrayList<>();
         for (SoundList slist : listOfSoundLists)
         {
@@ -1600,6 +1606,8 @@ public class RemoteHostMasterThread implements Callable<String> {
         String command = readMsg();
         if (command.equals("LISTEN_SOUND_APPROVED"))
         {
+            System.out.println("Entering as guest.");
+            System.out.println(soundFile.getName());
             if (!download)
             {
                 String path = "./tmp/" + soundFile.getName() + "." + soundFile.getFormat();

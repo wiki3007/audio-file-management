@@ -1036,7 +1036,8 @@ public class ServerComThread implements Callable<String> {
                                 "FROM `file` LEFT JOIN `file_sharing`\n" +
                                 "ON `file`.`id` = `file_sharing`.`file_id`\n" +
                                 "WHERE (`file`.`owner_id` = " + accountId + "\n" +
-                                "OR `file_sharing`.`account_id` = " + accountId + ")\n" +
+                                "OR `file_sharing`.`account_id` = " + accountId + " OR " +
+                                "`file`.`type` = 'public')\n" +
                                 "AND `file`.`id` = " + soundIdListen + ";");
                         if (!listenSet.next())
                         {
@@ -1044,6 +1045,7 @@ public class ServerComThread implements Callable<String> {
                             break;
                         }
                         sendMsg.println("LISTEN_SOUND_APPROVED");
+                        System.out.println("Calling as guest");
                         String path = "./sound_files/" + listenSet.getString("path") + "." + listenSet.getString("format");
                         sendFileData(path);
 

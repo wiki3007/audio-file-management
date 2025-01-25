@@ -116,8 +116,27 @@ public class MainScreenGUI {
         filesLayout.setTop(filesButtons);
         filesLayout.setCenter(fileTable);
 
-        BorderPane playerLayout = new BorderPane();
+        GridPane playerLayout = new GridPane();
         HBox playerButtonsLayout = new HBox();
+        playerButtonsLayout.setSpacing(10);
+        playerButtonsLayout.setPadding(new Insets(10, 10, 10, 10));
+        HBox controlLayout = new HBox();
+        controlLayout.setSpacing(10);
+        controlLayout.setPadding(new Insets(10, 10, 10, 10));
+
+        Slider volumeSlider = new Slider();
+        volumeSlider.setMin(0);
+        volumeSlider.setMax(100);
+        volumeSlider.setValue(50);
+        volumeSlider.setShowTickLabels(true);
+        volumeSlider.setShowTickMarks(true);
+        volumeSlider.valueProperty().addListener((listener) -> {
+            if(musicPlayer != null){
+                musicPlayer.setVolume(volumeSlider.getValue() / 100);
+            }
+
+        });
+
         Button playButton = new Button("Play");
         playButton.setOnAction((event) -> {
             if(musicPlayer == null){
@@ -130,6 +149,7 @@ public class MainScreenGUI {
                 }
 
                 String path = file.getPath();
+                System.out.println(path);
                 Media media = new Media(new File(path).toURI().toString());
                 musicPlayer = new MediaPlayer(media);
             }
@@ -148,11 +168,17 @@ public class MainScreenGUI {
             if(this.musicPlayer != null){
                 musicPlayer.stop();
                 musicPlayer = null;
+                new File(file.getPath()).delete();
+                file = null;
             }
         });
 
+        Label volumeLabel = new Label("Volume");
+
         playerButtonsLayout.getChildren().addAll(playButton, pauseButton, stopButton);
-        playerLayout.setCenter(playerButtonsLayout);
+        controlLayout.getChildren().addAll(volumeLabel, volumeSlider);
+        playerLayout.add(playerButtonsLayout, 0, 0);
+        playerLayout.add(controlLayout, 0, 1);
         filesLayout.setBottom(playerLayout);
 
         HBox listsButtons = new HBox();
@@ -245,7 +271,7 @@ public class MainScreenGUI {
                             Stage stage = (Stage) addNewFileButton.getScene().getWindow();
                             stage.close();
 
-                            this.fileList = host.getPublicFileArray();
+                            this.fileList = host.getAllPublicFilesUpdate();
                             fileTable.getItems().clear();
                             for(SoundFile file : fileList){
                                 fileTable.getItems().add(file);
@@ -300,8 +326,27 @@ public class MainScreenGUI {
         filesLayout.setTop(filesButtons);
         filesLayout.setCenter(fileTable);
 
-        BorderPane playerLayout = new BorderPane();
+        GridPane playerLayout = new GridPane();
         HBox playerButtonsLayout = new HBox();
+        playerButtonsLayout.setSpacing(10);
+        playerButtonsLayout.setPadding(new Insets(10, 10, 10, 10));
+        HBox controlLayout = new HBox();
+        controlLayout.setSpacing(10);
+        controlLayout.setPadding(new Insets(10, 10, 10, 10));
+
+        Slider volumeSlider = new Slider();
+        volumeSlider.setMin(0);
+        volumeSlider.setMax(100);
+        volumeSlider.setValue(50);
+        volumeSlider.setShowTickLabels(true);
+        volumeSlider.setShowTickMarks(true);
+        volumeSlider.valueProperty().addListener((listener) -> {
+            if(musicPlayer != null){
+                musicPlayer.setVolume(volumeSlider.getValue() / 100);
+            }
+
+        });
+
         Button playButton = new Button("Play");
         playButton.setOnAction((event) -> {
             if(musicPlayer == null){
@@ -314,6 +359,7 @@ public class MainScreenGUI {
                 }
 
                 String path = file.getPath();
+                System.out.println(path);
                 Media media = new Media(new File(path).toURI().toString());
                 musicPlayer = new MediaPlayer(media);
             }
@@ -332,6 +378,7 @@ public class MainScreenGUI {
             if(this.musicPlayer != null){
                 musicPlayer.stop();
                 musicPlayer = null;
+                new File(file.getPath()).delete();
                 file = null;
             }
         });
@@ -355,8 +402,13 @@ public class MainScreenGUI {
             }
         });
 
+        Label volumeLabel = new Label("Volume ");
+
         playerButtonsLayout.getChildren().addAll(playButton, pauseButton, stopButton, downloadButton);
-        playerLayout.setCenter(playerButtonsLayout);
+        controlLayout.getChildren().addAll(volumeLabel, volumeSlider);
+        playerLayout.add(playerButtonsLayout, 0, 0);
+        playerLayout.add(controlLayout, 0, 1);
+
         filesLayout.setBottom(playerLayout);
 
         HBox listsButtons = new HBox();
@@ -453,12 +505,11 @@ public class MainScreenGUI {
                         description = descriptionArea.getText();
 
                         try {
-                            SoundFile tempFile = host.addFileAsServer(fileName, description, duration, size, extension,
-                                    "null", path);
+                            host.addFile(fileName, description, duration, size, extension, "public", path);
                             Stage stage = (Stage) addNewFileButton.getScene().getWindow();
                             stage.close();
 
-                            this.fileList = host.getAllPrivateFilesUpdate();
+                            this.fileList = host.getAllPublicFilesUpdate();
                             fileTable.getItems().clear();
                             for(SoundFile file : fileList){
                                 fileTable.getItems().add(file);
@@ -499,12 +550,17 @@ public class MainScreenGUI {
         deleteFileButton.setOnAction((deleteEvent) -> {
             ObservableList<SoundFile> selectedFile = fileSelectionModel.getSelectedItems();
             file = selectedFile.getFirst();
-            host.deleteUserFile(file, file.getOwner_id());
 
-            this.fileList = host.getAllPublicFilesUpdate();
-            fileTable.getItems().clear();
-            for(SoundFile file : fileList){
-                fileTable.getItems().add(file);
+            if(file != null){
+                host.deleteFile(file);
+
+                this.fileList = host.getAllPublicFilesUpdate();
+                fileTable.getItems().clear();
+                for(SoundFile file : fileList){
+                    fileTable.getItems().add(file);
+                }
+
+                file = null;
             }
         });
 
@@ -513,8 +569,27 @@ public class MainScreenGUI {
         filesLayout.setTop(filesButtons);
         filesLayout.setCenter(fileTable);
 
-        BorderPane playerLayout = new BorderPane();
+        GridPane playerLayout = new GridPane();
         HBox playerButtonsLayout = new HBox();
+        playerButtonsLayout.setSpacing(10);
+        playerButtonsLayout.setPadding(new Insets(10, 10, 10, 10));
+        HBox controlLayout = new HBox();
+        controlLayout.setSpacing(10);
+        controlLayout.setPadding(new Insets(10, 10, 10, 10));
+
+        Slider volumeSlider = new Slider();
+        volumeSlider.setMin(0);
+        volumeSlider.setMax(100);
+        volumeSlider.setValue(50);
+        volumeSlider.setShowTickLabels(true);
+        volumeSlider.setShowTickMarks(true);
+        volumeSlider.valueProperty().addListener((listener) -> {
+            if(musicPlayer != null){
+                musicPlayer.setVolume(volumeSlider.getValue() / 100);
+            }
+
+        });
+
         Button playButton = new Button("Play");
         playButton.setOnAction((event) -> {
             if(musicPlayer == null){
@@ -527,6 +602,7 @@ public class MainScreenGUI {
                 }
 
                 String path = file.getPath();
+                System.out.println(path);
                 Media media = new Media(new File(path).toURI().toString());
                 musicPlayer = new MediaPlayer(media);
             }
@@ -545,6 +621,8 @@ public class MainScreenGUI {
             if(this.musicPlayer != null){
                 musicPlayer.stop();
                 musicPlayer = null;
+                new File(file.getPath()).delete();
+                file = null;
             }
         });
 
@@ -567,8 +645,12 @@ public class MainScreenGUI {
             }
         });
 
+        Label volumeLabel = new Label("Volume");
+
         playerButtonsLayout.getChildren().addAll(playButton, pauseButton, stopButton, downloadButton);
-        playerLayout.setCenter(playerButtonsLayout);
+        controlLayout.getChildren().addAll(volumeLabel, volumeSlider);
+        playerLayout.add(playerButtonsLayout, 0, 0);
+        playerLayout.add(controlLayout, 0, 1);
         filesLayout.setBottom(playerLayout);
 
         HBox listsButtons = new HBox();
